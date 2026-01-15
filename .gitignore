@@ -6,8 +6,8 @@
 *.plcproj.orig
 *.tpy
 *.tclrs
-*.library
-*.compiled-library
+#*.library
+#*.compiled-library
 *.compileinfo
 *.asm
 *.core

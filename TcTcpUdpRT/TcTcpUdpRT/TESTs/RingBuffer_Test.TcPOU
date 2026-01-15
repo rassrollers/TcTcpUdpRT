@@ -1,0 +1,292 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_Test" Id="{98565f11-6afe-01d4-1189-4324eb2e3ddd}" SpecialFunc="None">
+    <Declaration><![CDATA[//{attribute 'hide'}
+FUNCTION_BLOCK RingBuffer_Test EXTENDS FB_TestSuite
+VAR
+	RingBuf: RingBuffer;
+	ReadBuffer: ARRAY[0..(TcTcpUdpRT_Param.RingBufferSize-1)] OF BYTE;
+	WriteBuffer: ARRAY[0..(WriteBufferSize-1)] OF BYTE;
+END_VAR
+VAR CONSTANT
+	WriteBufferSize: UDINT := 35000;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Write3kToBufferAndEmptyIt();
+ExpectBufferToEmpty();
+ReadFromEmptyBuffer();
+Write1kBytesToBuffer();
+ExpectBufferNotToEmpty();
+Read2kBytesFrom1kBytesBuffer();
+Write25kMoreBytesToBuffer();
+Read24kMoreBytesFromBuffer();
+Write8kMoreBytesToBufferAndWrapAround();
+Read10kMoreBytesAndWrapAround();
+WriteOverflowBuffer();
+WriteFullSizeOfBuffer();
+Write1ByteOverWrapAroundAndRead1ByteOver();
+]]></ST>
+    </Implementation>
+    <Method Name="ExpectBufferNotToEmpty" Id="{9831089e-c19c-06b8-1314-546a4c9ab050}">
+      <Declaration><![CDATA[METHOD ExpectBufferNotToEmpty
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ExpectBufferNotToEmpty') THEN
+	AssertFalse(Condition:= RingBuf.IsBufferEmpty, Message:= 'Expected IsBufferEmpty returned TRUE when the buffer was not empty');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExpectBufferToEmpty" Id="{75c629cb-7df8-0a9c-00a3-204a82ec8c5e}">
+      <Declaration><![CDATA[METHOD ExpectBufferToEmpty
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ExpectBufferToEmpty') THEN
+	RingBuf.EmptyBuffer();
+	AssertTrue(Condition:= RingBuf.IsBufferEmpty, Message:= 'Expected IsBufferEmpty returned FALSE when the buffer was empty');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Read10kMoreBytesAndWrapAround" Id="{650e0902-7144-0e07-2003-8970e3c65d9e}">
+      <Declaration><![CDATA[METHOD Read10kMoreBytesAndWrapAround
+VAR
+	DataSize: UDINT := 10000;
+	ExpectedSize: UDINT := 9000;
+	Read: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Read10kMoreBytesAndWrapAround') THEN
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	
+	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Read, Message:= CONCAT('Read data from ring buffer returned a length of ', TO_STRING(Read)));
+	AssertTrue(Condition:= ReadBuffer[0] <> 0, Message:= 'The firste element was not different from zero');
+	AssertTrue(Condition:= ReadBuffer[ExpectedSize-1] <> 0, Message:= 'The 8999th element was not different from zero');
+	AssertTrue(Condition:= ReadBuffer[ExpectedSize] = 0, Message:= 'The 9000th element was not zero');
+	AssertTrue(Condition:= ReadBuffer[DataSize] = 0, Message:= 'The last element was not zero');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Read24kMoreBytesFromBuffer" Id="{ee2b87e8-34bb-0fba-0a93-719ed722eb85}">
+      <Declaration><![CDATA[METHOD Read24kMoreBytesFromBuffer
+VAR
+	DataSize: UDINT := 24000;
+	ExpectedSize: UDINT := 24000;
+	Read: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Read24kMoreBytesFromBuffer') THEN
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	
+	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Read, Message:= CONCAT('Read data from ring buffer returned a length of ', TO_STRING(Read)));
+	AssertTrue(Condition:= ReadBuffer[0] <> 0, Message:= 'The firste element was not different from zero');
+	AssertTrue(Condition:= ReadBuffer[18475] <> 0, Message:= 'A random element was not different from zero');
+	AssertTrue(Condition:= ReadBuffer[DataSize-1] <> 0, Message:= 'The last element was not different from zero');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Read2kBytesFrom1kBytesBuffer" Id="{8f7ef5ee-3b62-019c-0fcd-4bb58ff0553f}">
+      <Declaration><![CDATA[METHOD Read2kBytesFrom1kBytesBuffer
+VAR
+	DataSize: UDINT := 2000;
+	ExpectedSize: UDINT := 1000;
+	Read: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Read2kBytesFrom1kBytesBuffer') THEN
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	
+	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Read, Message:= CONCAT('Read data from ring buffer returned a length of ', TO_STRING(Read)));
+	AssertTrue(Condition:= ReadBuffer[0] <> 0, Message:= 'The firste element was not different from zero');
+	AssertTrue(Condition:= ReadBuffer[ExpectedSize-1] <> 0, Message:= 'The 999th element was not different from zero');
+	AssertTrue(Condition:= ReadBuffer[ExpectedSize] = 0, Message:= 'The 1000th element was not zero');
+	AssertTrue(Condition:= ReadBuffer[DataSize-1] = 0, Message:= 'The last element was not zero');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReadFromEmptyBuffer" Id="{094bc8db-bd23-0901-2107-d4e36179341f}">
+      <Declaration><![CDATA[METHOD ReadFromEmptyBuffer
+VAR
+	DataSize: UDINT := 10;
+	ExpectedSize: UDINT := 0;
+	Read: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReadFromEmptyBuffer') THEN
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	
+	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Read, Message:= CONCAT('Read data from empty ring buffer returned a length of ', TO_STRING(Read)));
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write1ByteOverWrapAroundAndRead1ByteOver" Id="{123120c6-1772-0bb6-3a3d-e1a2d48a9025}">
+      <Declaration><![CDATA[METHOD Write1ByteOverWrapAroundAndRead1ByteOver
+VAR
+	DataChar1: BYTE := 55;
+	DataSize1: UDINT := TcTcpUdpRT_Param.RingBufferSize - 10;
+	ExpectedSize1: UDINT := TcTcpUdpRT_Param.RingBufferSize - 10;
+	
+	DataChar2: BYTE := 57;
+	DataSize2: UDINT := 11;
+	ExpectedSize2: UDINT := 11;
+	
+	Written: UDINT;
+	Read: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Write1ByteOverWrapAroundAndRead1ByteOver') THEN
+	RingBuf.EmptyBuffer();
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar1, n:= DataSize1);
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize1);
+	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize1);
+	AssertEquals_UDINT(Expected:= ExpectedSize1, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	AssertEquals_UDINT(Expected:= ExpectedSize1, Actual:= Read, Message:= CONCAT('Read data from ring buffer returned a length of ', TO_STRING(Read)));
+	
+	
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar2, n:= DataSize2);
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize2);
+	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize2);
+	AssertEquals_UDINT(Expected:= ExpectedSize2, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	AssertEquals_UDINT(Expected:= ExpectedSize2, Actual:= Read, Message:= CONCAT('Read data from ring buffer returned a length of ', TO_STRING(Read)));
+	AssertEquals_BYTE(Expected:= DataChar2, Actual:= ReadBuffer[ExpectedSize2-2], Message:= 'The element before wrap around was not correct');
+	AssertEquals_BYTE(Expected:= DataChar2, Actual:= ReadBuffer[ExpectedSize2-1], Message:= 'The element after wrap around was not correct');
+	AssertEquals_BYTE(Expected:= 0, Actual:= ReadBuffer[ExpectedSize2], Message:= 'The element after last was not zero');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write1kBytesToBuffer" Id="{14a7cb7a-7ce7-0768-06fd-7b9ea6efddf3}">
+      <Declaration><![CDATA[METHOD Write1kBytesToBuffer
+VAR
+	DataChar: BYTE := 3;
+	DataSize: UDINT := 1000;
+	ExpectedSize: UDINT := 1000;
+	Written: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Write1kBytesToBuffer') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write25kMoreBytesToBuffer" Id="{de2f9a0b-dca5-0075-2cf3-1aeec36be4fb}">
+      <Declaration><![CDATA[METHOD Write25kMoreBytesToBuffer
+VAR
+	DataChar: BYTE := 8;
+	DataSize: UDINT := 25000;
+	ExpectedSize: UDINT := 25000;
+	Written: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Write25kMoreBytesToBuffer') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write3kToBufferAndEmptyIt" Id="{d58c1aa1-d401-0c98-3bcb-d7f4481a5c70}">
+      <Declaration><![CDATA[METHOD Write3kToBufferAndEmptyIt
+VAR
+	DataChar: BYTE := 69;
+	DataSize: UDINT := 3000;
+	ExpectedSize: UDINT := 3000;
+	Written: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Write3kToBufferAndEmptyIt') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	
+	AssertTrue(Condition:= RingBuf.IsBufferEmpty, Message:= 'Expected IsBufferEmpty returned FALSE when the buffer was empty');
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	AssertFalse(Condition:= RingBuf.IsBufferEmpty, Message:= 'Expected IsBufferEmpty returned TRUE when the buffer was not empty');
+	
+	RingBuf.EmptyBuffer();
+	AssertTrue(Condition:= RingBuf.IsBufferEmpty, Message:= 'Expected IsBufferEmpty returned FALSE when the buffer was empty');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write8kMoreBytesToBufferAndWrapAround" Id="{a4bb340d-5e00-053c-3b2f-e31da388c15e}">
+      <Declaration><![CDATA[METHOD Write8kMoreBytesToBufferAndWrapAround
+VAR
+	DataChar: BYTE := 16;
+	DataSize: UDINT := 8000;
+	ExpectedSize: UDINT := 8000;
+	Written: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('Write8kMoreBytesToBufferAndWrapAround') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteFullSizeOfBuffer" Id="{865e3a3f-0bec-0c0e-2c46-d8521bc62a53}">
+      <Declaration><![CDATA[METHOD WriteFullSizeOfBuffer
+VAR
+	DataChar: BYTE := 24;
+	DataSize: UDINT := TcTcpUdpRT_Param.RingBufferSize-1;
+	ExpectedSize: UDINT := TcTcpUdpRT_Param.RingBufferSize-1;
+	Written: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WriteFullSizeOfBuffer') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Written, Message:= 'Written data to ring buffer does not match actual');
+	AssertTrue(Condition:= RingBuf.IsBufferFull, Message:= 'Ring buffer was not full after writing full size');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteOverflowBuffer" Id="{f75e5afd-09cf-0567-2544-dc4c2b3f1a39}">
+      <Declaration><![CDATA[METHOD WriteOverflowBuffer
+VAR
+	DataChar: BYTE := 16;
+	DataSize: UDINT := WriteBufferSize;
+	Written: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WriteOverflowBuffer') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	
+	Written := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertTrue(Condition:= RingBuf.Error, Message:= RingBuf.GetError);
+	RingBuf.ResetError();
+	AssertFalse(Condition:= RingBuf.Error, Message:= 'Ring buffer did not reset error after overflow');
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

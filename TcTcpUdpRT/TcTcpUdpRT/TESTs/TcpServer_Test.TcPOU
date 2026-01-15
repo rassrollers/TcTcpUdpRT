@@ -1,0 +1,121 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TcpServer_Test" Id="{7356ce97-5fa9-0d40-182f-40a6d651e3e8}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'hide'}
+FUNCTION_BLOCK TcpServer_Test
+VAR
+	tcpServer: TcTcpServer;
+	listenPort: UINT := 9900;
+	server: ITcpServer := tcpServer;
+	icase: INT;
+	delay: TON;
+	
+	rxData: STRING(100);
+	txData: STRING := 'Hello from TCP server$R$N';
+	connection: BOOL;
+	rxCounter: UDINT;
+	
+	lastError: STRING;
+	reset: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[server.Run();
+connection := server.IsConnected;
+
+CASE icase OF 
+	0:  // Start listen on port 9900
+		IF server.OpenConnection(listenPort) THEN
+			icase := icase + 1;
+		END_IF
+	1:  // Connect with client on port 9900
+		IF server.IsConnected THEN
+			delay(IN:= TRUE, PT:= T#3S);
+			IF delay.Q THEN
+				delay(IN:= FALSE);
+				icase := icase + 1;
+			END_IF
+		END_IF
+	2:  // Send message
+		IF server.IsDataAvailable THEN
+			IF server.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
+				icase := icase + 1;
+			END_IF
+		END_IF
+	3:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	4:  // Server will respond with message
+		IF server.Send(DataPointer:= ADR(txData), DataLength:= SIZEOF(txData)) THEN
+			icase := icase + 1;
+		END_IF
+	5:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	6:  // Close connection from server side
+		IF server.CloseConnection() THEN
+			icase := icase + 1;
+		END_IF
+	7:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q AND NOT server.IsConnected THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	8:  // Start listen again on port 9900
+		IF server.OpenConnection(listenPort) THEN
+			icase := icase + 1;
+		END_IF
+	9:  // Re-connect with client
+		IF server.IsConnected THEN
+			delay(IN:= TRUE, PT:= T#3S);
+			IF delay.Q THEN
+				delay(IN:= FALSE);
+				icase := icase + 1;
+			END_IF
+		END_IF
+	10:
+		IF server.CloseConnection() THEN
+			icase := icase + 1;
+		END_IF
+		
+	// Continues receive
+	20:  // Start listen on port 9900
+		IF server.OpenConnection(listenPort) THEN
+			icase := icase + 1;
+		END_IF
+	21:  // Connect with client on port 9900
+		IF server.IsConnected THEN
+			delay(IN:= TRUE, PT:= T#3S);
+			IF delay.Q THEN
+				delay(IN:= FALSE);
+				icase := icase + 1;
+			END_IF
+		END_IF
+	22:  // Send message
+		IF server.IsDataAvailable THEN
+			IF server.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
+				rxCounter := rxCounter + 1;
+			END_IF
+		END_IF
+END_CASE
+
+IF server.Error THEN
+	lastError := server.GetError;
+END_IF
+
+IF reset THEN
+	server.ResetError();
+	lastError := '';
+	reset := FALSE;
+END_IF
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

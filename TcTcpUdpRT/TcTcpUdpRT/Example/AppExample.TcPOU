@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="AppExample" Id="{03b40a06-ca0f-087c-3bcb-a70262e06c77}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM AppExample
+VAR
+	TcServer: TcTcpServer;  // Initialize the OTCID for the TcServer in the project instance
+	Communication: CommunicationExample;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Communication(Server:= TcServer);  // Dependency inject the TcTcpServer implementation into the FB
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="CommunicationExample" Id="{dcf082e3-c5a8-07e6-2516-d027134feb67}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK CommunicationExample
+VAR_INPUT
+	Server: ITcpServer;
+END_VAR
+VAR
+	iCase: INT;
+	rxData: STRING;
+	errorMsg: STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Open and listen for a client on port 9900.
+// When client is connected, receive data until 'disconnect' command it received.
+
+Server.Run();  // Must be called cyclic to maintain the communication between the PLC code and the IO.
+
+CASE iCase OF 
+	0:
+		IF Server.OpenConnection(9900) THEN
+			iCase := iCase + 1;
+		END_IF
+	1:
+		IF Server.IsConnected THEN
+			iCase := iCase + 1;
+		END_IF
+	2:
+		IF Server.IsDataAvailable THEN
+			Server.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData));
+			IF rxData = 'disconnect' THEN
+				iCase:= iCase + 1;
+			END_IF
+		END_IF
+	3:
+		IF Server.CloseConnection() THEN
+			iCase := 0;
+		END_IF
+END_CASE
+
+IF Server.Error THEN
+	errorMsg := Server.GetError;
+	iCase := -1;
+END_IF
+
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

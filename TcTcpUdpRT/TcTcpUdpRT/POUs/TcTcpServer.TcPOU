@@ -1,0 +1,409 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TcTcpServer" Id="{0c19c04e-3477-0041-1eb8-cd4991c2510e}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'c++_compatible'}
+// TCP server implementation for the TF6311 license.
+// Use the ITcpServer interface to interact with this FB.
+FUNCTION_BLOCK TcTcpServer IMPLEMENTS ITcIoTcpProtocolRecv, ITcpServer
+VAR
+	{attribute 'TcInitSymbol'}
+    oid					: OTCID;  // Object ID to Ethernet adapter
+    ipTcp				: ITcIoTcpProtocol;
+	serverId			: UDINT;  // Server socket ID
+	clientId			: UDINT;  // Client socket ID
+	hrInit				: HRESULT;
+	hr					: HRESULT;
+	                	
+	remoteIpAddress		: UDINT;  // HEX big endian, (192.168.17.10 = 0xC0A8110A)
+	packagesReceived	: UDINT;
+	lastTcpEvent		: TCPIP_EVENT;
+	
+	_error				: BOOL;
+	_errorString		: STRING(TcTcpUdpRT_Param.ErrorStringSize);
+	_buffer				: RingBuffer;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="CloseConnection" Id="{fe0bd2ba-8327-0849-3e30-f78038626484}">
+      <Declaration><![CDATA[(* Close client connection*)
+METHOD CloseConnection : BOOL (* Return TRUE if succesful*)
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF IsConnected THEN
+	ipTcp.Close(socketId:= clientId);  // Close client first if connected
+	clientId := 0;
+END_IF
+
+IF serverId <> 0 THEN  
+	ipTcp.FreeSocket(serverId);  // Free the server socket
+	serverId := 0;
+	CloseConnection := TRUE;
+ELSE
+	_error := TRUE;
+	_errorString := 'TcpServer: Can not close connection because no server socket is allocated';
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Error" Id="{deb4655c-c554-0ebb-1d99-d6ff17c8e971}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{ead1e5b0-0525-05c5-19ce-227e3d791c8f}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Error := _error;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_exit" Id="{38d10497-83f8-03ee-2004-740a503a78f1}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipTcp <> 0 AND NOT bInCopyCode THEN // no online change -> shutdown
+	IF (clientId <> 0) THEN  
+		ipTcp.FreeSocket(clientId);  // Free the client socket
+	END_IF
+	IF (serverId <> 0) THEN  
+	    ipTcp.FreeSocket(serverId);  // Free the server socket
+	END_IF
+	FW_SafeRelease(ADR(ipTcp));
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{02cf812b-906c-08dd-1d88-f8a3de6b72ad}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN // no online change
+	IF ipTcp = 0 THEN
+		hrInit := FW_ObjMgr_GetObjectInstance(oid:=oid, iid:=TC_GLOBAL_IID_LIST.IID_ITcIoTcpProtocol, pipUnk:=ADR(ipTcp));  // Get interface pointer from I/O
+		IF FAILED(hrInit) THEN
+          	FW_SafeRelease(ADR(ipTcp));
+			_error := TRUE;
+			_errorString := 'UdpSendReceive: Failed to get object instance';
+		END_IF
+	 ELSIF oid = 0 THEN
+		_error := TRUE;
+		_errorString := 'TcpServer: No object ID for ethernet adapter';
+        hrInit := ERR_INVALID_PARAM;                 
+    END_IF
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_reinit" Id="{254f83b1-9f26-0181-1d83-b335e6dac661}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_reinit : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (ipTcp <> 0 AND serverId <> 0) THEN  // Re-register THIS^ for online changes  
+	ipTcp.AllocSocket(THIS^, serverId);
+END_IF
+IF (ipTcp <> 0 AND clientId <> 0) THEN  // Re-register THIS^ for online changes  
+	ipTcp.AllocSocket(THIS^, clientId);
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="GetError" Id="{0ea6c4bd-870c-02e3-054e-9d493c602f95}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING
+]]></Declaration>
+      <Get Name="Get" Id="{22b02de7-dee6-04bd-3713-a5c12a1b42d9}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[GetError := _errorString;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="IsConnected" Id="{39f61f3b-3b16-0ddf-1430-ca07dfc11b40}">
+      <Declaration><![CDATA[PROPERTY IsConnected : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{35bd14d9-8209-0010-2dcb-91de89055f0b}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsConnected := (lastTcpEvent >= TCPIP_EVENT.TCPIP_EVENT_CONN_IDLE AND lastTcpEvent <= TCPIP_EVENT.TCPIP_EVENT_KEEP_ALIVE) OR lastTcpEvent = TCPIP_EVENT.TCPIP_EVENT_CONN_ESTABLISHED;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="IsDataAvailable" Id="{2238b8c1-14a9-0a6a-2f54-f9b64a9a5efc}">
+      <Declaration><![CDATA[PROPERTY IsDataAvailable : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{6534aae3-c976-06ee-1c59-33163a6555e9}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsDataAvailable := NOT _buffer.IsBufferEmpty;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="OpenConnection" Id="{9e0e31cc-3d02-07e0-39ff-1cdb02faeb7c}">
+      <Declaration><![CDATA[(* Open a connection and starts to listening for client*)
+METHOD OpenConnection : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	(* Port to listening on*)
+	Port: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipTcp <> 0 THEN
+	IF serverId = 0 THEN
+		IF ipTcp.AllocSocket(ipRecv:= THIS^, socketId:= serverId) <> S_OK THEN
+			_error := TRUE;
+			_errorString := 'TcpServer: Failed to allocate server sockete';
+		END_IF
+	END_IF
+	
+	IF ipTcp.Listen(socketId:= serverId, tcpPort:= Port) = S_OK THEN
+		OpenConnection := TRUE;
+	ELSE
+		_error := TRUE;
+		_errorString := CONCAT('TcpServer: Failed to listen on port: ', TO_STRING(Port));
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Receive" Id="{fc72bf35-a095-0981-300d-acb414bdf295}">
+      <Declaration><![CDATA[(* Get the received data*)
+METHOD Receive : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	(* Pointer to data buffer*)
+	DataPointer	: POINTER TO BYTE;
+	(* Length of the data buffer*) 
+	DataLength	: UDINT;
+END_VAR
+VAR_OUTPUT
+	(* Length of the received data*)
+	ReceivedLength	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF IsConnected THEN
+	ReceivedLength := _buffer.Read(Data:= DataPointer, Length:= DataLength);
+	IF _buffer.Error THEN
+		_error := TRUE;
+		_errorString := CONCAT('TcpServer: ', _buffer.GetError);
+	ELSE
+		Receive := TRUE;
+	END_IF
+ELSE
+	_error := TRUE;
+	_errorString := 'TcpServer: Can not receive data when client is not connected';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveData" Id="{9a742310-825f-05c6-21c2-b843c1cb4f04}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+//{attribute 'hide'}
+// Callback from I/O when new data is received
+METHOD ReceiveData : HRESULT
+VAR_INPUT
+	socketId	: UDINT;
+	nData		: UDINT;
+	pData		: PVOID;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _buffer.IsBufferFull THEN
+	_error := TRUE;
+	_errorString := 'TcpServer: Received data while buffer was already full';
+	RETURN;
+ELSE
+	_buffer.Write(Data:= pData, Length:= nData);
+	IF _buffer.Error THEN
+		_error := TRUE;
+		_errorString := CONCAT('TcpServer: ', _buffer.GetError);
+	END_IF
+	packagesReceived := packagesReceived + 1;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveEvent" Id="{a1af1c8e-b002-0d41-0b97-ebf5a000bc85}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TCP receive event (callback from I/O) when connection state changes
+METHOD ReceiveEvent : HRESULT
+VAR_INPUT
+	socketId	: UDINT;  // Incomming socket ID from client
+	tcpEvent	: TCPIP_EVENT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE tcpEvent OF
+	TCPIP_EVENT.TCPIP_EVENT_ERROR:
+		;
+	TCPIP_EVENT.TCPIP_EVENT_RESET:
+		ipTcp.FreeSocket(socketId);
+	TCPIP_EVENT.TCPIP_EVENT_TIMEOUT:
+		ipTcp.FreeSocket(socketId);
+	TCPIP_EVENT.TCPIP_EVENT_CONN_CLOSED:
+		ipTcp.FreeSocket(socketId);
+	TCPIP_EVENT.TCPIP_EVENT_CONN_INCOMING:
+		ipTcp.Accept(socketId);
+		ipTcp.GetRemoteIpAddr(socketId, remoteIpAddress);  // Save the client's IP address
+		clientId := socketId;  // Store client socket id; used at least in init during online change
+	TCPIP_EVENT.TCPIP_EVENT_KEEP_ALIVE:
+		;
+	TCPIP_EVENT.TCPIP_EVENT_CONN_IDLE:
+		;
+	TCPIP_EVENT.TCPIP_EVENT_DATA_SENT:
+		;
+	TCPIP_EVENT.TCPIP_EVENT_DATA_RECEIVED:
+		;
+	TCPIP_EVENT.TCPIP_EVENT_LINKCONNECT:
+		;
+	TCPIP_EVENT.TCPIP_EVENT_LINKDISCONNECT:
+		ipTcp.FreeSocket(socketId);
+END_CASE; 
+lastTcpEvent := tcpEvent;
+ReceiveEvent := S_OK;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetError" Id="{daddab66-0c7c-048c-19bc-e73442cc2b4b}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_error := FALSE;
+_errorString := '';
+_buffer.ResetError();
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Run" Id="{98b9b2b4-73f7-06ce-24b5-816f363c10ec}">
+      <Declaration><![CDATA[(* This method must be run cyclic to maintain the communincation between the PLC code and the I/O hardware.
+ ReceiveEvent and ReceiveData are used as callback in the context of this method (server and client functionality).*)
+METHOD Run : BOOL
+VAR
+	hRes: HRESULT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipTcp <> 0 THEN
+	hRes := ipTcp.CheckReceived();;
+	IF hRes = S_OK THEN
+		Run := TRUE;
+	ELSE
+		_error := TRUE;
+		_errorString := CONCAT('TcpServer: Run error, HRESULT: ', DWORD_TO_HEXSTR(in:= DINT_TO_DWORD(hRes), iPrecision:= 8, bLoCase:= FALSE));
+	END_IF
+ELSE
+	_error := TRUE;
+	_errorString := 'TcpServer: No interface pointer to run CheckReceived';
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Send" Id="{ac036726-5e0d-005c-055f-e3e53cf032e8}">
+      <Declaration><![CDATA[(* Send data from client to server*)
+METHOD Send : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	(* Pointer to data*)
+	DataPointer	: POINTER TO BYTE;
+	(* Length of the data*)
+	DataLength	: UDINT;
+END_VAR
+VAR_OUTPUT
+	(* Number of bytes sent*)
+	DataSent	: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF IsConnected THEN
+	hr := ipTcp.SendData(socketId:= clientId, nData:= DataLength, pData:= DataPointer, nSendData:= DataSent);
+	IF FAILED(hr) THEN
+		_error := TRUE;
+		_errorString := CONCAT('TcpServer: Failed to send data, HRESULT: ', TO_STRING(hr));
+	ELSE
+		Send := TRUE;
+	END_IF
+ELSE
+	_error := TRUE;
+	_errorString := 'TcpServer: Failed to send data when client is not connected';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcAddRef" Id="{866c2561-af0f-04cc-2835-26ff2e1733fa}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TcAddRef is not used in the TCP/UDP interface
+METHOD TcAddRef : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcQueryInterface" Id="{d1aa3766-4c61-0085-1f1c-5b54a2e3d38e}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TwinCAT uses this method to detect that the corresponding interface was implemented
+METHOD TcQueryInterface : HRESULT
+VAR_INPUT
+	iid	: REFERENCE TO IID;
+	pipItf	: POINTER TO PVOID;
+END_VAR
+VAR
+	ipTcpRecv : ITcIoTcpProtocolRecv;
+	ipUnknown : ITcUnknown;   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcIoTcpProtocolRecv)) THEN
+	ipTcpRecv := THIS^; // cast to interface pointer
+	pipItf^ := ITCUNKNOWN_TO_PVOID(ipTcpRecv);
+	TcAddRef();
+	TcQueryInterface := S_OK;
+ELSIF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcUnknown)) THEN
+	ipUnknown := THIS^; // cast to interface pointer
+	pipItf^ := ITCUNKNOWN_TO_PVOID(ipUnknown);
+	TcAddRef();
+	TcQueryInterface := S_OK;
+ELSE
+	TcQueryInterface := E_HRESULTAdsErr.NOINTERFACE ; //Call super if this fb extends some other
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcRelease" Id="{f16e7a39-a1f6-0bf7-0575-b209e5671420}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TcRelease is not used in the TCP/UDP interface
+METHOD TcRelease : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

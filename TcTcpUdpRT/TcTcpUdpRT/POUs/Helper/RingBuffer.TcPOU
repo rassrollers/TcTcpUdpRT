@@ -1,0 +1,224 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer" Id="{80aea213-0d34-08b9-10ae-08e00b244947}" SpecialFunc="None">
+    <Declaration><![CDATA[// The buffer uses 1-byte separation rule from the writer to the reader
+FUNCTION_BLOCK RingBuffer
+VAR
+	_error			: BOOL;
+	_errorString	: STRING(TcTcpUdpRT_Param.ErrorStringSize);
+	_ringBuffer		: ARRAY[0..(TcTcpUdpRT_Param.RingBufferSize-1)] OF BYTE;
+	_readPointer	: UDINT;
+	_writePointer	: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="CopyFromBuffer" Id="{6a33b9e1-e432-0529-12da-35921cb56c1e}">
+      <Declaration><![CDATA[METHOD PRIVATE CopyFromBuffer : UDINT
+VAR_INPUT
+	Data	: POINTER TO BYTE;
+	Length	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CopyFromBuffer := MEMCPY(destAddr:= Data, srcAddr:= ADR(_ringBuffer[_readPointer]), n:= Length);
+IF CopyFromBuffer = 0 THEN
+	_error := TRUE;
+	_errorString := CONCAT('MEMCPY invalid parameter, ReadPointer: ', CONCAT(TO_STRING(_readPointer), CONCAT(', Length: ', CONCAT(TO_STRING(Length), CONCAT(', Data: ', TO_STRING(Data))))));
+ELSIF CopyFromBuffer <> Length THEN
+	_error := TRUE;
+	_errorString := CONCAT('MEMCPY size ', CONCAT(TO_STRING(CopyFromBuffer), CONCAT(' from buffer is different from length ', TO_STRING(Length))));
+ELSE
+	_readPointer := (_readPointer + CopyFromBuffer) MOD TcTcpUdpRT_Param.RingBufferSize;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CopyToBuffer" Id="{734a526b-f17b-0cee-1d60-c60399a92bc6}">
+      <Declaration><![CDATA[METHOD PRIVATE CopyToBuffer : UDINT
+VAR_INPUT
+	Data	: POINTER TO BYTE;
+	Length	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CopyToBuffer := MEMCPY(destAddr:= ADR(_ringBuffer[_writePointer]), srcAddr:= Data, n:= Length);
+IF CopyToBuffer = 0 THEN
+	_error := TRUE;
+	_errorString := CONCAT('MEMCPY invalid parameter, WritePointer: ', CONCAT(TO_STRING(_writePointer), CONCAT(', Length: ', CONCAT(TO_STRING(Length), CONCAT(', Data: ', TO_STRING(Data))))));
+ELSIF CopyToBuffer <> Length THEN
+	_error := TRUE;
+	_errorString := CONCAT('MEMCPY size ', CONCAT(TO_STRING(CopyToBuffer), CONCAT(' to buffer is different from length ', TO_STRING(Length))));
+ELSE
+	_writePointer := (_writePointer + CopyToBuffer) MOD TcTcpUdpRT_Param.RingBufferSize;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="EmptyBuffer" Id="{0f7441c0-08f4-029b-0fb2-e728fac33e5d}">
+      <Declaration><![CDATA[METHOD EmptyBuffer : BOOL
+VAR
+	set	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[set := MEMSET(destAddr:= ADR(_ringBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+IF set = TcTcpUdpRT_Param.RingBufferSize THEN
+	_readPointer := 0;
+	_writePointer := 0;
+	EmptyBuffer := TRUE;
+ELSE
+	_error := TRUE;
+	_errorString := 'Failed to empty ring buffer, MEMSET to zero';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Error" Id="{fea8a711-26c7-0572-04dd-e66f59709a5e}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c70bea21-318a-0ee0-1eb0-ec5bc9e8a557}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Error := _error;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="GetError" Id="{ec835a68-a4b3-02af-0a12-dba7371b5b41}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)]]></Declaration>
+      <Get Name="Get" Id="{afb0f6c2-cb50-02cc-1741-8bceaea93735}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[GetError := _errorString;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="IsBufferEmpty" Id="{498c0ea8-4fab-053e-39ad-7af76230e8ed}">
+      <Declaration><![CDATA[PROPERTY IsBufferEmpty : BOOL]]></Declaration>
+      <Get Name="Get" Id="{586b14d4-0d2b-0fe3-1d0c-45914576bc3a}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsBufferEmpty := (TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1) = -1;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="IsBufferFull" Id="{9d03a104-eaae-0564-219e-1d2fcbe3ca33}">
+      <Declaration><![CDATA[PROPERTY IsBufferFull : BOOL]]></Declaration>
+      <Get Name="Get" Id="{85385786-b48e-07e7-1288-5b9d6586232e}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsBufferFull := (TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1) = 0;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Read" Id="{91db3c69-5cde-0009-0fda-a86128231982}">
+      <Declaration><![CDATA[METHOD Read : UDINT
+VAR_INPUT
+	Data	: POINTER TO BYTE;
+	Length	: UDINT;
+END_VAR
+VAR
+	copied	: UDINT;
+	first	: UDINT;
+	second	: UDINT;
+	available	: UDINT;
+	lastReadPointer	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Data = 0 THEN
+	_error := TRUE;
+	_errorString := 'Was not able to read from buffer because data pointer was empty';
+	RETURN;
+END_IF
+
+IF _readPointer = _writePointer THEN
+    Read := 0;
+    RETURN;
+END_IF
+
+available := (_writePointer - _readPointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize;
+IF Length > available THEN
+	Length := available;
+END_IF
+
+
+IF _readPointer + Length <= TcTcpUdpRT_Param.RingBufferSize THEN
+	// No wrap around
+	Read := CopyFromBuffer(Data:= Data, Length:= Length);
+ELSE
+	// Wrap around
+	lastReadPointer := _readPointer;
+	first := TcTcpUdpRT_Param.RingBufferSize - _readPointer;
+	copied := CopyFromBuffer(Data:= Data, Length:= first);
+	Read := copied;
+	
+	second := Length - first;
+	copied := CopyFromBuffer(Data:= ADR(Data[first]), Length:= second);
+	Read := Read + copied;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetError" Id="{58940d66-7c5c-0e58-300e-860cb6cedc43}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_error := FALSE;
+_errorString := '';]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Write" Id="{419acdf9-7d69-0db9-0ffa-9999d3b7b3cc}">
+      <Declaration><![CDATA[METHOD Write : UDINT
+VAR_INPUT
+	Data	: POINTER TO BYTE;
+	Length	: UDINT;
+END_VAR
+VAR
+	copied	: UDINT;
+	first	: UDINT;
+	second	: UDINT;
+	available	: LINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF Data = 0 THEN
+	_error := TRUE;
+	_errorString := 'Was not able to write to buffer because data pointer was empty';
+	RETURN;
+END_IF
+
+available := TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1;
+IF available < 0 THEN
+	available := TcTcpUdpRT_Param.RingBufferSize - 1;
+END_IF
+
+IF Length > available THEN 
+	Write := 0;
+	_error := TRUE;
+	_errorString := CONCAT('Ring buffer write overflow, available: ', CONCAT(TO_STRING(available), CONCAT(', length: ', TO_STRING(Length))));
+	RETURN;
+END_IF
+
+IF (_writePointer + Length) <= TcTcpUdpRT_Param.RingBufferSize THEN
+	// No wrap around
+	Write := CopyToBuffer(Data:= Data, Length:= Length);
+ELSE
+	// Wrap around
+	first := TcTcpUdpRT_Param.RingBufferSize - _writePointer;
+	copied := CopyToBuffer(Data:= Data, Length:= first);
+	Write := copied;
+	
+	second := Length - first;
+	copied := CopyToBuffer(Data:= ADR(Data[first]), Length:= second);
+	Write := Write + copied;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

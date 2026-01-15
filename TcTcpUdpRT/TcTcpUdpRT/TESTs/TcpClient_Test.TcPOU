@@ -1,0 +1,92 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TcpClient_Test" Id="{59d0df3b-807f-0a6c-1561-f149e3a7dd3a}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'hide'}
+FUNCTION_BLOCK TcpClient_Test
+VAR
+	tcpClient: TcTcpClient;
+	clientAddr: STRING(15) := '192.168.1.110';
+	clientPort: UINT := 8800;
+	client: ITcpClient := tcpClient;
+	icase: INT;
+	delay: TON;
+	
+	rxData: STRING(100);
+	txData: STRING := 'Hello from TCP client$R$N';
+	connection: BOOL;
+	
+	lastError: STRING;
+	reset: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[client.Run();
+connection := client.IsConnected;
+
+CASE icase OF
+	0:  // Start listen on port 8800 with server
+		client.Connect(IpAddress:= clientAddr, Port:= clientPort);
+		IF connection := client.IsConnected THEN
+			icase := icase + 1;
+		END_IF
+	1:  // Send message
+		IF client.IsDataAvailable THEN
+			IF client.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
+				icase := icase + 1;
+			END_IF
+		END_IF
+	2:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	3:  // Client will respond with a message
+		IF client.Send(DataPointer:= ADR(txData), DataLength:= SIZEOF(txData)) THEN
+			icase := icase + 1;
+		END_IF
+	4:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	5:  // Close connection from client side
+		IF client.Disconnect() THEN
+			icase := icase + 1;
+		END_IF
+	6:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	7:  // Re-connect with client
+		client.Connect(IpAddress:= clientAddr, Port:= clientPort);
+		IF connection := client.IsConnected THEN
+			icase := icase + 1;
+		END_IF
+	8:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	9:
+		IF client.Disconnect() THEN
+			icase := icase + 1;
+		END_IF
+END_CASE
+
+IF client.Error THEN
+	lastError := client.GetError;
+END_IF
+
+IF reset THEN
+	client.ResetError();
+	lastError := '';
+	reset := FALSE;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

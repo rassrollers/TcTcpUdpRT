@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="UdpSendReceive_Test" Id="{c850c202-53d0-0eeb-17a4-d7a260690fc0}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'hide'}
+FUNCTION_BLOCK UdpSendReceive_Test
+VAR
+	udp: TcUdpSendReceive;
+	listenPort: UINT := 8900;
+	udpClient: IUdpSendReceive := udp;
+	clientAddr: STRING(15) := '192.168.17.110';
+	clientPort: UINT := 9000;
+	icase: INT;
+	delay: TON;
+	
+	rxData: STRING(100);
+	txData: STRING := 'Hello from UDP$R$N';
+	
+	lastError: STRING;
+	reset: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[udpClient.Run();
+
+CASE icase OF
+	0:  // UDP starts to listen on port 8900 and start UDP server to listen on port 9000
+		IF udpClient.StartListen(listenPort) THEN
+			icase := icase + 1;
+		END_IF
+	1:  // Send a message with UDP client on port 8900
+		IF udpClient.IsDataAvailable THEN
+			IF udpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
+				icase := icase + 1;
+			END_IF
+		END_IF
+	2:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	3:  // UDP will respond with a message on port 9000
+		IF udpClient.Send(clientAddr, clientPort, ADR(txData), SIZEOF(txData)) THEN
+			icase := icase + 1;
+		END_IF
+	4:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	5:  // UDP will stop listen
+		IF udpClient.StopListen() THEN
+			icase := icase + 1;
+		END_IF
+	6:
+		delay(IN:= TRUE, PT:= T#3S);
+		IF delay.Q THEN
+			delay(IN:= FALSE);
+			icase := icase + 1;
+		END_IF
+	7:  // UDP will start listen again on port 8900
+		IF udpClient.StartListen(listenPort) THEN
+			icase := icase + 1;
+		END_IF
+	8:  // Send a message again on port 8900
+		IF udpClient.IsDataAvailable THEN
+			IF udpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
+				icase := icase + 1;
+			END_IF
+		END_IF
+	9:
+		IF udpClient.StopListen() THEN
+			icase := icase + 1;
+		END_IF
+END_CASE
+
+IF udpClient.Error THEN
+	lastError := udpClient.GetError;
+END_IF
+
+IF reset THEN
+	udpClient.ResetError();
+	lastError := '';
+	reset := FALSE;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

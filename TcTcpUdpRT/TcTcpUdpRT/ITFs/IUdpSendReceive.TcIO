@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="IUdpSendReceive" Id="{3888c6e9-c10a-0197-1055-3126dbfc9c2b}">
+    <Declaration><![CDATA[// Interface for the UDP send/receive using the TF6311
+INTERFACE IUdpSendReceive
+]]></Declaration>
+    <Property Name="Error" Id="{ece71d29-c4e0-0192-2fad-396f08a2a1df}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL]]></Declaration>
+      <Get Name="Get" Id="{00d516af-24a2-06b6-1574-3ee15c0abeea}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="GetError" Id="{ea6213b4-85ef-03c8-02bd-e3bb8c2de267}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING]]></Declaration>
+      <Get Name="Get" Id="{fd34daa6-9d49-09df-2ad3-ade1f3637c41}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="IsDataAvailable" Id="{500c5d8a-53ba-0981-1e64-250e76370305}">
+      <Declaration><![CDATA[PROPERTY IsDataAvailable : BOOL]]></Declaration>
+      <Get Name="Get" Id="{c0485b9a-3442-0bd0-23fa-8029f68a211a}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="Receive" Id="{2292f10d-e6c9-02d8-08b6-6330f5b8304c}">
+      <Declaration><![CDATA[// Get the received data
+METHOD Receive : BOOL  // Return TRUE if succesful
+VAR_INPUT
+	DataPointer	: POINTER TO BYTE;  // Pointer to data
+	DataLength	: UDINT;  // Length of the data
+END_VAR
+VAR_OUTPUT
+	ReceivedLength	: UDINT;  // Length of the received data
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ResetError" Id="{0598a0de-8f20-090f-3585-8465133fd7dc}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+    </Method>
+    <Method Name="Run" Id="{568e2f5b-98ae-02d5-3bad-089d8ed088c4}">
+      <Declaration><![CDATA[// This method must be run cyclic to maintain the communincation between the PLC code and the I/O hardware.
+// ReceiveEvent and ReceiveData are used as callback in the context of this method (server and client functionality).
+METHOD Run : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="Send" Id="{d4b835f7-29cb-0acb-0019-0af24024e2d9}">
+      <Declaration><![CDATA[// Send data to IP address on port
+METHOD Send : BOOL  // Return TRUE if succesful
+VAR_INPUT
+	IpAddress	: STRING(15);  // Receiver's IP address
+	Port		: UINT;  // Receiver's port
+	DataPointer	: POINTER TO BYTE;  // Pointer to data
+	DataLength	: UDINT;  // Length of the data
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="StartListen" Id="{0a2554ea-b771-0d35-1ca2-a3957a7496aa}">
+      <Declaration><![CDATA[// Starts to listen on port for messages
+METHOD StartListen : BOOL  // Return TRUE if succesful
+VAR_INPUT
+	Port: UINT;  // Port to listening on
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="StopListen" Id="{769fd9d1-6fa7-04e0-3396-92ec208cb2f4}">
+      <Declaration><![CDATA[// Stops listening on port for messages
+METHOD StopListen : BOOL  // Return TRUE if succesful
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TcUdpSendReceive" Id="{03ea7285-07b4-0ccc-25e3-84f8d924298b}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'c++_compatible'}
+// UDP send/receive implementation for the TF6311 license.
+// Use the IUdpSendReceive interface to interact with this FB.
+FUNCTION_BLOCK TcUdpSendReceive IMPLEMENTS ITcIoUdpProtocolRecv, IUdpSendReceive
+VAR
+	{attribute 'TcInitSymbol'}
+    oid					: OTCID;  // Object ID to Ethernet adapter
+    ipUdp				: ITcIoUdpProtocol;
+	packagesReceived	: UDINT;
+	hrInit				: HRESULT;
+	hrSend				: HRESULT;
+	
+	listenPort			: UINT;  // Port registered for the UPD to listen on
+	sourcePort			: UINT;  // Set by the FB_init
+	rxPort				: UINT;  // Port of the last received message
+	
+	_error				: BOOL;
+	_errorString		: STRING;
+	_buffer				: RingBuffer;
+END_VAR
+VAR_STAT
+	{attribute 'hide'}
+	instancePort		: UINT := TcTcpUdpRT_Param.UdpSourcePortStart;  // Static source port for sending. Is increased per instance of FB.
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="Error" Id="{e0f32e1e-4756-00ff-296b-1289492857b8}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{a819f6f2-4834-03ba-17c9-8a176ade2bf2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Error := _error;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_exit" Id="{c653dde5-6285-02b0-0cc0-50a46d003b83}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT bInCopyCode AND ipUdp <> 0) THEN // no online change -> shutdown
+	ipUdp.UnregisterReceiver(listenPort);
+	FW_SafeRelease(ADR(ipUdp));
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{6c1d0378-d410-02ef-3e82-ca87448ebee6}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN // no online change
+    IF ipUdp = 0 AND oid <> 0 THEN
+		hrInit := FW_ObjMgr_GetObjectInstance(oid:=oid, iid:=TC_GLOBAL_IID_LIST.IID_ITcIoUdpProtocol, pipUnk:=ADR(ipUdp) );
+        IF FAILED(hrInit) THEN
+          	FW_SafeRelease(ADR(ipUdp));
+			_error := TRUE;
+			_errorString := 'UdpSendReceive: Failed to get object instance';
+		END_IF
+    ELSIF oid = 0 THEN
+		_error := TRUE;
+		_errorString := 'UdpSendReceive: No object ID for ethernet adapter';
+        hrInit := ERR_INVALID_PARAM;                 
+    END_IF
+END_IF
+sourcePort := instancePort;
+instancePort := instancePort + 1;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_reinit" Id="{12fa4b07-07fb-0b49-3bf0-c9125fb71fd4}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_reinit : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (ipUdp <> 0) THEN 
+	ipUdp.RegisterReceiver(listenPort, THIS^);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="GetError" Id="{febe20ae-0f43-0611-2f90-3e46f19c2389}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING
+]]></Declaration>
+      <Get Name="Get" Id="{32ff41a9-2332-0890-183e-c20ae6685a67}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[GetError := _errorString;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="IsDataAvailable" Id="{5f557e77-a9c1-0c69-2070-4bafcb03d8ec}">
+      <Declaration><![CDATA[PROPERTY IsDataAvailable : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{79202040-fe84-03bb-210d-6c055cf820bd}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsDataAvailable := NOT _buffer.IsBufferEmpty;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Receive" Id="{d6f5f849-3bda-09e0-288d-e68d8d9bb038}">
+      <Declaration><![CDATA[(* Get the received data*)
+METHOD Receive : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	(* Pointer to data*)
+	DataPointer	: POINTER TO BYTE;
+	(* Length of the data*)
+	DataLength	: UDINT;
+END_VAR
+VAR_OUTPUT
+	(* Length of the received data*)
+	ReceivedLength	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ReceivedLength := _buffer.Read(Data:= DataPointer, Length:= DataLength);
+IF _buffer.Error THEN
+	_error := TRUE;
+	_errorString := CONCAT('UdpSendReceive: ', _buffer.GetError);
+ELSE
+	Receive := TRUE;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveData" Id="{b1c3b1fc-b82b-0b37-0c4d-f4266b8c0ba2}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+METHOD ReceiveData : HRESULT
+VAR_INPUT
+	ipAddr : UDINT;
+	udpDestPort : UINT;
+	udpSrcPort : UINT;
+	nData : UDINT;
+	pData : PVOID;
+	pVlan : POINTER TO ETYPE_VLAN_HEADER := 0;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _buffer.IsBufferFull THEN
+	_error := TRUE;
+	_errorString := 'UdpSendReceive: Received data while buffer was already full';
+	RETURN;
+ELSE
+	_buffer.Write(Data:= pData, Length:= nData);
+	IF _buffer.Error THEN
+		_error := TRUE;
+		_errorString := CONCAT('UdpSendReceive: ', _buffer.GetError);
+	END_IF
+	packagesReceived := packagesReceived + 1;
+END_IF
+rxPort := udpSrcPort;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetError" Id="{3c3191ff-726d-0897-2229-6117521236e7}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_error := FALSE;
+_errorString := '';
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Run" Id="{46ae646a-f4db-0b13-0d76-5d0b1e4b9925}">
+      <Declaration><![CDATA[(* This method must be run cyclic to maintain the communincation between the PLC code and the I/O hardware.
+ ReceiveEvent and ReceiveData are used as callback in the context of this method (server and client functionality).*)
+METHOD Run : BOOL
+VAR
+	hRes: HRESULT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipUdp <> 0 THEN
+    hRes := ipUdp.CheckReceived();;
+	IF hRes = S_OK THEN
+		Run := TRUE;
+	ELSE
+		_error := TRUE;
+		_errorString := CONCAT('UdpSendReceive: Run error, HRESULT: ', DWORD_TO_HEXSTR(in:= DINT_TO_DWORD(hRes), iPrecision:= 8, bLoCase:= FALSE));
+	END_IF
+ELSE
+	_error := TRUE;
+	_errorString := 'UdpSendReceive: No interface pointer to run CheckReceived';
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Send" Id="{ee24b950-486d-0b58-1a0f-2b81fa633367}">
+      <Declaration><![CDATA[(* Send data to IP address on port*)
+METHOD Send : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	(* Receiver's IP address*)
+	IpAddress	: STRING(15);
+	(* Receiver's port*)
+	Port	: UINT;
+	(* Pointer to data*)
+	DataPointer	: POINTER TO BYTE;
+	(* Length of the data*)
+	DataLength	: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipUdp <> 0 THEN
+	hrSend := ipUdp.SendData(
+		ipDestAddr:= IpAddressToLongInt(IpAddress),
+		udpDestPort:= Port,
+		udpSrcPort:= sourcePort,
+		nData:= DataLength, 
+		pData:= DataPointer, 
+		bCalcUdpCheckSum:= TRUE, 
+		pVlan:= 0
+	);
+	IF FAILED(hrSend) THEN
+		_error := TRUE;
+		_errorString := CONCAT('UdpSendReceive: Failed to send data to ', CONCAT(IpAddress, CONCAT(':', TO_STRING(Port))));
+	ELSE
+		Send := TRUE;
+	END_IF
+ELSE
+	_error := TRUE;
+	_errorString := 'UdpSendReceive: Failed to send because UDP interface pointer was not set';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StartListen" Id="{08730bd7-16a0-028c-11b1-2b3e64b178ff}">
+      <Declaration><![CDATA[(* Starts to listen on port for messages*)
+METHOD StartListen : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	(* Port to listening on*)
+	Port	: UINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipUdp <> 0 THEN
+	IF listenPort = 0 THEN
+		IF ipUdp.RegisterReceiver(udpPort:= Port, ipRecv:= THIS^) = S_OK THEN
+			listenPort := Port;
+			StartListen := TRUE;
+		ELSE
+			_error := TRUE;
+			_errorString := CONCAT('UdpSendReceive: Failed to register port: ', TO_STRING(Port));
+		END_IF
+	ELSE
+		_error := TRUE;
+		_errorString := CONCAT('UdpSendReceive: Port already registered: ', TO_STRING(listenPort));
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="StopListen" Id="{06669bf7-1aa0-0337-3a80-e66c85b1b102}">
+      <Declaration><![CDATA[(* Stops listening on port for messages*)
+METHOD StopListen : BOOL (* Return TRUE if succesful*)
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipUdp <> 0 THEN
+	IF listenPort = 0 THEN
+		_error := TRUE;
+		_errorString := 'UdpSendReceive: Unable to close connection because no connection was open';
+	ELSE
+		IF ipUdp.UnregisterReceiver(udpPort:= listenPort) = S_OK THEN
+			listenPort := 0;
+			StopListen := TRUE;
+		ELSE
+			_error := TRUE;
+			_errorString := CONCAT('UdpSendReceive: Failed to unregister port: ', TO_STRING(listenPort));
+		END_IF
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcAddRef" Id="{f4c1cae4-a4cf-02d1-146a-aadcdd88a0d4}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TcAddRef is not used in the TCP/UDP interface
+METHOD TcAddRef : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcQueryInterface" Id="{0a4619b0-ab52-0b19-18eb-9f5e66f5fa44}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TwinCAT uses this method to detect that the corresponding interface was implemented
+METHOD TcQueryInterface : HRESULT
+VAR_INPUT
+	iid	: REFERENCE TO IID;
+	pipItf	: POINTER TO PVOID;
+END_VAR
+VAR
+   ipUdpRecv : ITcIoUdpProtocolRecv;
+   ipUnknown : ITcUnknown;   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcIoUdpProtocolRecv)) THEN
+   ipUdpRecv := THIS^; // cast to interface pointer
+   pipItf^ := ITCUNKNOWN_TO_PVOID(ipUdpRecv);
+   TcAddRef();
+   TcQueryInterface := S_OK;
+ELSIF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcUnknown)) THEN
+   ipUnknown := THIS^; // cast to interface pointer
+   pipItf^ := ITCUNKNOWN_TO_PVOID(ipUnknown);
+   TcAddRef();
+   TcQueryInterface := S_OK;
+ELSE
+   TcQueryInterface := E_HRESULTAdsErr.NOINTERFACE ; //Call super if this fb extends some other
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcRelease" Id="{54ba7eea-f51d-0a4a-2758-cad66feba4df}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TcRelease is not used in the TCP/UDP interface
+METHOD TcRelease : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
