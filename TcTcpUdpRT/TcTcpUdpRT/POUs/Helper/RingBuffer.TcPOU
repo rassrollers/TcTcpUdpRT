@@ -100,7 +100,7 @@ END_IF
       <Get Name="Get" Id="{586b14d4-0d2b-0fe3-1d0c-45914576bc3a}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IsBufferEmpty := (TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1) = -1;
+          <ST><![CDATA[IsBufferEmpty := _readPointer = _writePointer;
 ]]></ST>
         </Implementation>
       </Get>
@@ -110,7 +110,7 @@ END_IF
       <Get Name="Get" Id="{85385786-b48e-07e7-1288-5b9d6586232e}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IsBufferFull := (TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1) = 0;
+          <ST><![CDATA[IsBufferFull := (_writePointer + 1) MOD TcTcpUdpRT_Param.RingBufferSize = _readPointer;
 ]]></ST>
         </Implementation>
       </Get>
@@ -126,36 +126,45 @@ VAR
 	first	: UDINT;
 	second	: UDINT;
 	available	: UDINT;
-	lastReadPointer	: UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF Data = 0 THEN
+	Read := 0;
 	_error := TRUE;
 	_errorString := 'Was not able to read from buffer because data pointer was empty';
+	RETURN;
+ELSIF Length = 0 THEN
+	Read := 0;
+	_error := TRUE;
+	_errorString := 'Was not able to read from buffer because length was zero';
 	RETURN;
 END_IF
 
 IF _readPointer = _writePointer THEN
+	// No data to be read
     Read := 0;
     RETURN;
 END_IF
 
 available := (_writePointer - _readPointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize;
 IF Length > available THEN
+	// Only read available data
 	Length := available;
 END_IF
-
 
 IF _readPointer + Length <= TcTcpUdpRT_Param.RingBufferSize THEN
 	// No wrap around
 	Read := CopyFromBuffer(Data:= Data, Length:= Length);
 ELSE
 	// Wrap around
-	lastReadPointer := _readPointer;
 	first := TcTcpUdpRT_Param.RingBufferSize - _readPointer;
 	copied := CopyFromBuffer(Data:= Data, Length:= first);
 	Read := copied;
+	
+	IF _error THEN
+		RETURN;
+	END_IF
 	
 	second := Length - first;
 	copied := CopyFromBuffer(Data:= ADR(Data[first]), Length:= second);
@@ -169,7 +178,8 @@ END_IF
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_error := FALSE;
-_errorString := '';]]></ST>
+_errorString := '';
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="Write" Id="{419acdf9-7d69-0db9-0ffa-9999d3b7b3cc}">
@@ -187,17 +197,25 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF Data = 0 THEN
+	Write := 0;
 	_error := TRUE;
 	_errorString := 'Was not able to write to buffer because data pointer was empty';
 	RETURN;
+ELSIF Length = 0 THEN
+	Write := 0;
+	_error := TRUE;
+	_errorString := 'Was not able to write to buffer because length was zero';
+	RETURN;
 END_IF
 
-available := TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1;
-IF available < 0 THEN
+IF IsBufferEmpty THEN
 	available := TcTcpUdpRT_Param.RingBufferSize - 1;
+ELSE
+	available := TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1;
 END_IF
 
 IF Length > available THEN 
+	// Not enough space available
 	Write := 0;
 	_error := TRUE;
 	_errorString := CONCAT('Ring buffer write overflow, available: ', CONCAT(TO_STRING(available), CONCAT(', length: ', TO_STRING(Length))));
@@ -212,6 +230,10 @@ ELSE
 	first := TcTcpUdpRT_Param.RingBufferSize - _writePointer;
 	copied := CopyToBuffer(Data:= Data, Length:= first);
 	Write := copied;
+	
+	IF _error THEN
+		RETURN;
+	END_IF
 	
 	second := Length - first;
 	copied := CopyToBuffer(Data:= ADR(Data[first]), Length:= second);

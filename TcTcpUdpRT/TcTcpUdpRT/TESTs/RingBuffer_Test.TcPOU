@@ -1,30 +1,41 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="RingBuffer_Test" Id="{98565f11-6afe-01d4-1189-4324eb2e3ddd}" SpecialFunc="None">
-    <Declaration><![CDATA[//{attribute 'hide'}
-FUNCTION_BLOCK RingBuffer_Test EXTENDS FB_TestSuite
+    <Declaration><![CDATA[FUNCTION_BLOCK RingBuffer_Test EXTENDS FB_TestSuite
 VAR
 	RingBuf: RingBuffer;
 	ReadBuffer: ARRAY[0..(TcTcpUdpRT_Param.RingBufferSize-1)] OF BYTE;
 	WriteBuffer: ARRAY[0..(WriteBufferSize-1)] OF BYTE;
+	emptyPointer: POINTER TO BYTE;
+	bytePointer: BYTE;
 END_VAR
 VAR CONSTANT
 	WriteBufferSize: UDINT := 35000;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[Write3kToBufferAndEmptyIt();
-ExpectBufferToEmpty();
+      <ST><![CDATA[//WriteWithNoDataPointer();
+//WriteWithNoDataLength();
+//ReadWithNoDataPointer();
+//ReadWithNoDataLength();
+
+Write3kToBufferAndEmptyIt();
+ExpectBufferToBeEmpty();
 ReadFromEmptyBuffer();
 Write1kBytesToBuffer();
 ExpectBufferNotToEmpty();
+
 Read2kBytesFrom1kBytesBuffer();
 Write25kMoreBytesToBuffer();
+ExpectBufferToNotBeFull();
+
 Read24kMoreBytesFromBuffer();
 Write8kMoreBytesToBufferAndWrapAround();
 Read10kMoreBytesAndWrapAround();
+
 WriteOverflowBuffer();
 WriteFullSizeOfBuffer();
+ExpectBufferToBeFull();
 Write1ByteOverWrapAroundAndRead1ByteOver();
 ]]></ST>
     </Implementation>
@@ -38,15 +49,38 @@ Write1ByteOverWrapAroundAndRead1ByteOver();
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="ExpectBufferToEmpty" Id="{75c629cb-7df8-0a9c-00a3-204a82ec8c5e}">
-      <Declaration><![CDATA[METHOD ExpectBufferToEmpty
+    <Method Name="ExpectBufferToBeEmpty" Id="{75c629cb-7df8-0a9c-00a3-204a82ec8c5e}">
+      <Declaration><![CDATA[METHOD ExpectBufferToBeEmpty
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF TEST_ORDERED('ExpectBufferToEmpty') THEN
+        <ST><![CDATA[IF TEST_ORDERED('ExpectBufferToBeEmpty') THEN
 	RingBuf.EmptyBuffer();
 	AssertTrue(Condition:= RingBuf.IsBufferEmpty, Message:= 'Expected IsBufferEmpty returned FALSE when the buffer was empty');
 	TEST_FINISHED();
-END_IF]]></ST>
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExpectBufferToBeFull" Id="{d56b2754-49b4-0e2c-38f5-5414ae6a630c}">
+      <Declaration><![CDATA[METHOD ExpectBufferToBeFull
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ExpectBufferToBeFull') THEN
+	AssertTRUE(Condition:= RingBuf.IsBufferFull, Message:= 'Expected IsBufferFull returned FALSE when the buffer was full');
+	TEST_FINISHED();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ExpectBufferToNotBeFull" Id="{71444a77-0f09-0b01-244d-8f9526864a3c}">
+      <Declaration><![CDATA[METHOD ExpectBufferToNotBeFull
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ExpectBufferToNotBeFull') THEN
+	AssertFalse(Condition:= RingBuf.IsBufferFull, Message:= 'Expected IsBufferFull returned TRUE when the buffer was not full');
+	TEST_FINISHED();
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="Read10kMoreBytesAndWrapAround" Id="{650e0902-7144-0e07-2003-8970e3c65d9e}">
@@ -125,6 +159,32 @@ END_VAR
 	
 	Read := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
 	AssertEquals_UDINT(Expected:= ExpectedSize, Actual:= Read, Message:= CONCAT('Read data from empty ring buffer returned a length of ', TO_STRING(Read)));
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReadWithNoDataLength" Id="{35ab7352-a1bb-0626-208d-e29731a9ebc9}">
+      <Declaration><![CDATA[METHOD ReadWithNoDataLength
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReadWithNoDataLength') THEN
+	emptyPointer := ADR(bytePointer);
+	RingBuf.Read(Data:= emptyPointer, Length:= 0);
+	AssertTrue(Condition:= RingBuf.Error, Message:= 'Reading to ring buffer did not handle a data length of zero');
+	RingBuf.ResetError();
+	TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReadWithNoDataPointer" Id="{c7f382af-ec7f-05d4-355f-7d2ee03e149f}">
+      <Declaration><![CDATA[METHOD ReadWithNoDataPointer
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReadWithNoDataPointer') THEN
+	emptyPointer := 0;
+	RingBuf.Read(Data:= emptyPointer, Length:= 10);
+	AssertTrue(Condition:= RingBuf.Error, Message:= 'Reading to ring buffer did not handle empty data pointer');
+	RingBuf.ResetError();
 	TEST_FINISHED();
 END_IF]]></ST>
       </Implementation>
@@ -286,6 +346,34 @@ END_VAR
 	AssertFalse(Condition:= RingBuf.Error, Message:= 'Ring buffer did not reset error after overflow');
 	TEST_FINISHED();
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteWithNoDataLength" Id="{811e8989-8a4c-03a5-1a54-b6ef52b52cea}">
+      <Declaration><![CDATA[METHOD WriteWithNoDataLength
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WriteWithNoDataLength') THEN
+	emptyPointer := ADR(bytePointer);
+	RingBuf.Write(Data:= emptyPointer, Length:= 0);
+	AssertTrue(Condition:= RingBuf.Error, Message:= 'Writing to ring buffer did not handle a data length of zero');
+	RingBuf.ResetError();
+	TEST_FINISHED();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteWithNoDataPointer" Id="{8ca191e7-4302-09e1-135a-7c2a877cdbb0}">
+      <Declaration><![CDATA[METHOD WriteWithNoDataPointer
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WriteWithNoDataPointer') THEN
+	emptyPointer := 0;
+	RingBuf.Write(Data:= emptyPointer, Length:= 10);
+	AssertTrue(Condition:= RingBuf.Error, Message:= 'Writing to ring buffer did not handle empty data pointer');
+	RingBuf.ResetError();
+	TEST_FINISHED();
+END_IF
+]]></ST>
       </Implementation>
     </Method>
   </POU>

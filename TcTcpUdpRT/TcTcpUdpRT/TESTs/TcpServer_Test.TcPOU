@@ -1,121 +1,151 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="TcpServer_Test" Id="{7356ce97-5fa9-0d40-182f-40a6d651e3e8}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'hide'}
-FUNCTION_BLOCK TcpServer_Test
+    <Declaration><![CDATA[FUNCTION_BLOCK TcpServer_Test EXTENDS FB_TestSuite
 VAR
-	tcpServer: TcTcpServer;
-	listenPort: UINT := 9900;
-	server: ITcpServer := tcpServer;
-	icase: INT;
-	delay: TON;
+	startTcpServerTest		: BOOL;
+	tcpServerTestDone		: BOOL;
+	tcpServerTestTimeout	: TON := (PT:= T#2M);
 	
-	rxData: STRING(100);
-	txData: STRING := 'Hello from TCP server$R$N';
-	connection: BOOL;
-	rxCounter: UDINT;
-	
-	lastError: STRING;
-	reset: BOOL;
+	tcpServer	: TcTcpServer;
+	listenPort	: UINT := 9900;
+	txData		: STRING(25) := 'Hello from PLC TCP server';
+	txCounter	: UDINT;
+	rxData		: STRING;
+	rxCounter	: UDINT;
+	methodTimeout		: TON;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[server.Run();
-connection := server.IsConnected;
+      <ST><![CDATA[tcpServer.Run();
 
-CASE icase OF 
-	0:  // Start listen on port 9900
-		IF server.OpenConnection(listenPort) THEN
-			icase := icase + 1;
-		END_IF
-	1:  // Connect with client on port 9900
-		IF server.IsConnected THEN
-			delay(IN:= TRUE, PT:= T#3S);
-			IF delay.Q THEN
-				delay(IN:= FALSE);
-				icase := icase + 1;
-			END_IF
-		END_IF
-	2:  // Send message
-		IF server.IsDataAvailable THEN
-			IF server.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
-				icase := icase + 1;
-			END_IF
-		END_IF
-	3:
-		delay(IN:= TRUE, PT:= T#3S);
-		IF delay.Q THEN
-			delay(IN:= FALSE);
-			icase := icase + 1;
-		END_IF
-	4:  // Server will respond with message
-		IF server.Send(DataPointer:= ADR(txData), DataLength:= SIZEOF(txData)) THEN
-			icase := icase + 1;
-		END_IF
-	5:
-		delay(IN:= TRUE, PT:= T#3S);
-		IF delay.Q THEN
-			delay(IN:= FALSE);
-			icase := icase + 1;
-		END_IF
-	6:  // Close connection from server side
-		IF server.CloseConnection() THEN
-			icase := icase + 1;
-		END_IF
-	7:
-		delay(IN:= TRUE, PT:= T#3S);
-		IF delay.Q AND NOT server.IsConnected THEN
-			delay(IN:= FALSE);
-			icase := icase + 1;
-		END_IF
-	8:  // Start listen again on port 9900
-		IF server.OpenConnection(listenPort) THEN
-			icase := icase + 1;
-		END_IF
-	9:  // Re-connect with client
-		IF server.IsConnected THEN
-			delay(IN:= TRUE, PT:= T#3S);
-			IF delay.Q THEN
-				delay(IN:= FALSE);
-				icase := icase + 1;
-			END_IF
-		END_IF
-	10:
-		IF server.CloseConnection() THEN
-			icase := icase + 1;
-		END_IF
-		
-	// Continues receive
-	20:  // Start listen on port 9900
-		IF server.OpenConnection(listenPort) THEN
-			icase := icase + 1;
-		END_IF
-	21:  // Connect with client on port 9900
-		IF server.IsConnected THEN
-			delay(IN:= TRUE, PT:= T#3S);
-			IF delay.Q THEN
-				delay(IN:= FALSE);
-				icase := icase + 1;
-			END_IF
-		END_IF
-	22:  // Send message
-		IF server.IsDataAvailable THEN
-			IF server.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
-				rxCounter := rxCounter + 1;
-			END_IF
-		END_IF
-END_CASE
-
-IF server.Error THEN
-	lastError := server.GetError;
+IF startTcpServerTest THEN
+	OpenConnectionAndListenForClient();
+	WaitForTcpClientToConnect();
+	ReceiveDataFromTcpClient();
+	SendDataToTcpClient();
+	WaitForClientToDisconnect();
 END_IF
 
-IF reset THEN
-	server.ResetError();
-	lastError := '';
-	reset := FALSE;
+TEST('RunTcpServerTest');
+tcpServerTestTimeout(IN:= startTcpServerTest);
+IF tcpServerTestDone THEN
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+ELSIF tcpServerTestTimeout.Q THEN
+	AssertFalse(Condition:= tcpServerTestTimeout.Q, Message:= 'TcpServer_Test timed out while running');
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+ELSIF tcpServer.Error THEN
+	AssertFalse(Condition:= tcpServer.Error, Message:= tcpServer.GetError);
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
 END_IF
 ]]></ST>
     </Implementation>
+    <Method Name="OpenConnectionAndListenForClient" Id="{42e72aa7-fbb5-075d-08b7-6dad45207f77}">
+      <Declaration><![CDATA[METHOD OpenConnectionAndListenForClient
+VAR_INST
+	openConnection: BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('OpenConnectionAndListenForClient') THEN
+	openConnection := tcpServer.OpenConnection(listenPort);
+	AssertTrue(Condition:= openConnection, Message:= 'Failed to open TCP server connection');
+	TEST_FINISHED();	
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveDataFromTcpClient" Id="{e17060f2-cdc0-06b1-33cb-6c616973211c}">
+      <Declaration><![CDATA[METHOD ReceiveDataFromTcpClient
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReceiveDataFromTcpClient') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpServer.IsDataAvailable THEN
+		IF tcpServer.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData), ReceivedLength=> rxCounter) THEN
+			ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'Message received: %s', strArg:= rxData);
+			AssertTrue(Condition:= rxCounter > 0, Message:= 'The data from the TCP client had a length of zero');
+			methodTimeout(IN:= FALSE);
+			TEST_FINISHED();
+		END_IF
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP server timed out waiting for data from the TCP client');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SendDataToTcpClient" Id="{2b7b7141-1bcc-0e99-0403-54f875bd5a33}">
+      <Declaration><![CDATA[METHOD SendDataToTcpClient
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('SendDataToTcpClient') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpServer.Send(DataPointer:= ADR(txData), DataLength:= SIZEOF(txData), DataSent=> txCounter) THEN
+		ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'Message sent: %s', strArg:= txData);
+		AssertTrue(Condition:= txCounter > 0, Message:= 'The data sent to the TCP client had a length of zero');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP server timed out sending data to the TCP client');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WaitForClientToDisconnect" Id="{6d403a52-4b69-0b9f-1532-6dd26536a0b1}">
+      <Declaration><![CDATA[METHOD WaitForClientToDisconnect
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WaitForClientToDisconnect') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF NOT  tcpServer.IsConnected THEN
+		tcpServerTestDone := TRUE;
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP server timed out waiting for TCP client to disconnection');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WaitForTcpClientToConnect" Id="{f20f572d-153d-0531-23e8-ce4fefe06fef}">
+      <Declaration><![CDATA[METHOD WaitForTcpClientToConnect
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WaitForTcpClientToConnect') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpServer.IsConnected THEN
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP server timed out waiting for the TCP client to connection');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

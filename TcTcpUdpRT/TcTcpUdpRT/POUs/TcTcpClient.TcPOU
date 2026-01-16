@@ -87,7 +87,8 @@ END_VAR
         <ST><![CDATA[IF (ipTcp <> 0 AND NOT bInCopyCode) THEN // no online change -> shutdown
     ipTcp.FreeSocket(clientId);
     FW_SafeRelease(ADR(ipTcp));
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_init" Id="{659ac52c-5325-0625-0338-dec8530345c5}">
@@ -112,7 +113,8 @@ END_VAR
 		_errorString := 'TcpClient: No object ID for ethernet adapter';
         hrInit := ERR_INVALID_PARAM;                 
     END_IF
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_reinit" Id="{c06c45aa-07dd-0235-3f55-25476769d891}">
@@ -123,7 +125,8 @@ METHOD FB_reinit : BOOL
         <ST><![CDATA[// Re-register THIS^ (TCP/UDP RT object) for online changes 
 IF (ipTcp <> 0 AND clientId <> 0) THEN 
 	ipTcp.AllocSocket(THIS^, clientId);
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Property Name="GetError" Id="{08254bf6-6761-0470-357e-ff2d70f826ac}">
@@ -142,7 +145,9 @@ END_IF]]></ST>
       <Get Name="Get" Id="{f626f2f7-5e12-0c42-13a5-470d12909975}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IsConnected := (lastTcpEvent >= TCPIP_EVENT.TCPIP_EVENT_CONN_IDLE AND lastTcpEvent <= TCPIP_EVENT.TCPIP_EVENT_KEEP_ALIVE) OR lastTcpEvent = TCPIP_EVENT.TCPIP_EVENT_CONN_ESTABLISHED;]]></ST>
+          <ST><![CDATA[IsConnected := (lastTcpEvent >= TCPIP_EVENT.TCPIP_EVENT_CONN_IDLE AND lastTcpEvent <= TCPIP_EVENT.TCPIP_EVENT_KEEP_ALIVE) 
+	OR lastTcpEvent = TCPIP_EVENT.TCPIP_EVENT_CONN_ESTABLISHED;
+]]></ST>
         </Implementation>
       </Get>
     </Property>
@@ -274,7 +279,9 @@ ReceiveEvent := S_OK;
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_error := FALSE;
-_errorString := '';]]></ST>
+_errorString := '';
+_buffer.ResetError();
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="Run" Id="{6ce5ae5b-8fba-0422-2fcf-f8d1f4f56c28}">

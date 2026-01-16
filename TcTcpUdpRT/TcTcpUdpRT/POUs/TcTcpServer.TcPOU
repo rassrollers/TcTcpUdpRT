@@ -43,7 +43,8 @@ IF serverId <> 0 THEN
 ELSE
 	_error := TRUE;
 	_errorString := 'TcpServer: Can not close connection because no server socket is allocated';
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Property Name="Error" Id="{deb4655c-c554-0ebb-1d99-d6ff17c8e971}">
@@ -52,7 +53,8 @@ END_IF]]></ST>
       <Get Name="Get" Id="{ead1e5b0-0525-05c5-19ce-227e3d791c8f}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[Error := _error;]]></ST>
+          <ST><![CDATA[Error := _error;
+]]></ST>
         </Implementation>
       </Get>
     </Property>
@@ -99,7 +101,6 @@ END_VAR
         hrInit := ERR_INVALID_PARAM;                 
     END_IF
 END_IF
-
 ]]></ST>
       </Implementation>
     </Method>
@@ -123,7 +124,8 @@ END_IF
       <Get Name="Get" Id="{22b02de7-dee6-04bd-3713-a5c12a1b42d9}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[GetError := _errorString;]]></ST>
+          <ST><![CDATA[GetError := _errorString;
+]]></ST>
         </Implementation>
       </Get>
     </Property>
@@ -133,7 +135,9 @@ END_IF
       <Get Name="Get" Id="{35bd14d9-8209-0010-2dcb-91de89055f0b}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IsConnected := (lastTcpEvent >= TCPIP_EVENT.TCPIP_EVENT_CONN_IDLE AND lastTcpEvent <= TCPIP_EVENT.TCPIP_EVENT_KEEP_ALIVE) OR lastTcpEvent = TCPIP_EVENT.TCPIP_EVENT_CONN_ESTABLISHED;]]></ST>
+          <ST><![CDATA[IsConnected := (lastTcpEvent >= TCPIP_EVENT.TCPIP_EVENT_CONN_IDLE AND lastTcpEvent <= TCPIP_EVENT.TCPIP_EVENT_KEEP_ALIVE) 
+	OR lastTcpEvent = TCPIP_EVENT.TCPIP_EVENT_CONN_ESTABLISHED;
+]]></ST>
         </Implementation>
       </Get>
     </Property>
@@ -171,7 +175,8 @@ END_VAR
 		_error := TRUE;
 		_errorString := CONCAT('TcpServer: Failed to listen on port: ', TO_STRING(Port));
 	END_IF
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="Receive" Id="{fc72bf35-a095-0981-300d-acb414bdf295}">
@@ -311,7 +316,8 @@ END_VAR
 ELSE
 	_error := TRUE;
 	_errorString := 'TcpServer: No interface pointer to run CheckReceived';
-END_IF]]></ST>
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="Send" Id="{ac036726-5e0d-005c-055f-e3e53cf032e8}">

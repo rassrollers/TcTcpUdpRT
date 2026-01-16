@@ -1,89 +1,126 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="UdpSendReceive_Test" Id="{c850c202-53d0-0eeb-17a4-d7a260690fc0}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'hide'}
-FUNCTION_BLOCK UdpSendReceive_Test
+    <Declaration><![CDATA[FUNCTION_BLOCK UdpSendReceive_Test EXTENDS FB_TestSuite
 VAR
-	udp: TcUdpSendReceive;
-	listenPort: UINT := 8900;
-	udpClient: IUdpSendReceive := udp;
-	clientAddr: STRING(15) := '192.168.17.110';
-	clientPort: UINT := 9000;
-	icase: INT;
-	delay: TON;
+	startUdpTest		: BOOL;
+	udpTestDone			: BOOL;
+	waitListenTestDone	: BOOL;
+	waitReceiveTestDone	: BOOL;
+	waitDelay			: TON := (PT:= T#1S);
+	tcpServerTestTimeout	: TON := (PT:= T#2M);
 	
-	rxData: STRING(100);
-	txData: STRING := 'Hello from UDP$R$N';
-	
-	lastError: STRING;
-	reset: BOOL;
+	udpClient		: TcUdpSendReceive;
+	clientAddr		: STRING(15) := '192.168.17.119';
+	listenPort		: UINT := 9902;
+	sendPort		: UINT := 9901;
+	txData			: STRING(25) := 'Hello from PLC UDP client';
+	txCounter		: UDINT;
+	rxData			: STRING;
+	rxCounter		: UDINT;
+	methodTimeout	: TON;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[udpClient.Run();
 
-CASE icase OF
-	0:  // UDP starts to listen on port 8900 and start UDP server to listen on port 9000
-		IF udpClient.StartListen(listenPort) THEN
-			icase := icase + 1;
-		END_IF
-	1:  // Send a message with UDP client on port 8900
-		IF udpClient.IsDataAvailable THEN
-			IF udpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
-				icase := icase + 1;
-			END_IF
-		END_IF
-	2:
-		delay(IN:= TRUE, PT:= T#3S);
-		IF delay.Q THEN
-			delay(IN:= FALSE);
-			icase := icase + 1;
-		END_IF
-	3:  // UDP will respond with a message on port 9000
-		IF udpClient.Send(clientAddr, clientPort, ADR(txData), SIZEOF(txData)) THEN
-			icase := icase + 1;
-		END_IF
-	4:
-		delay(IN:= TRUE, PT:= T#3S);
-		IF delay.Q THEN
-			delay(IN:= FALSE);
-			icase := icase + 1;
-		END_IF
-	5:  // UDP will stop listen
-		IF udpClient.StopListen() THEN
-			icase := icase + 1;
-		END_IF
-	6:
-		delay(IN:= TRUE, PT:= T#3S);
-		IF delay.Q THEN
-			delay(IN:= FALSE);
-			icase := icase + 1;
-		END_IF
-	7:  // UDP will start listen again on port 8900
-		IF udpClient.StartListen(listenPort) THEN
-			icase := icase + 1;
-		END_IF
-	8:  // Send a message again on port 8900
-		IF udpClient.IsDataAvailable THEN
-			IF udpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData)) THEN
-				icase := icase + 1;
-			END_IF
-		END_IF
-	9:
-		IF udpClient.StopListen() THEN
-			icase := icase + 1;
-		END_IF
-END_CASE
-
-IF udpClient.Error THEN
-	lastError := udpClient.GetError;
+IF startUdpTest THEN
+	ListenOnUdpPort();
+	ReceiveUdpMessage();
+	SendUdpMessage();
 END_IF
 
-IF reset THEN
-	udpClient.ResetError();
-	lastError := '';
-	reset := FALSE;
-END_IF]]></ST>
+TEST('RunUdpClientTest');
+tcpServerTestTimeout(IN:= startUdpTest);
+IF udpTestDone THEN
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+ELSIF tcpServerTestTimeout.Q THEN
+	AssertFalse(Condition:= tcpServerTestTimeout.Q, Message:= 'UdpClient_Test timed out while running');
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+ELSIF udpClient.Error THEN
+	AssertFalse(Condition:= udpClient.Error, Message:= udpClient.GetError);
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+END_IF
+]]></ST>
     </Implementation>
+    <Method Name="ListenOnUdpPort" Id="{a850c202-53d0-0eeb-17a4-d7a260690fc1}">
+      <Declaration><![CDATA[METHOD ListenOnUdpPort
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ListenOnUdpPort') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF udpClient.StartListen(Port:= listenPort) THEN
+		ADSLOGDINT(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'UDP client listening on port %d', dintArg:= listenPort);
+		waitListenTestDone := TRUE;
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'UDP client timed out listening on port');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveUdpMessage" Id="{c850c202-53d0-0eeb-17a4-d7a260690fc3}">
+      <Declaration><![CDATA[METHOD ReceiveUdpMessage
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReceiveUdpMessage') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF udpClient.IsDataAvailable THEN
+		IF udpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData), ReceivedLength=> rxCounter) THEN
+			ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'UDP message received: %s', strArg:= rxData);
+			AssertTrue(Condition:= rxCounter > 0, Message:= 'The data from the UDP server had a length of zero');
+			waitReceiveTestDone := TRUE;
+			methodTimeout(IN:= FALSE);
+			TEST_FINISHED();
+		END_IF
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'UDP client timed out waiting for data from the UDP server');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SendUdpMessage" Id="{b850c202-53d0-0eeb-17a4-d7a260690fc2}">
+      <Declaration><![CDATA[METHOD SendUdpMessage
+VAR_INST
+	delay: TIME := T#15S;
+	i: INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('SendUdpMessage') THEN
+	waitDelay(IN:= TRUE);
+	IF waitDelay.Q THEN
+		FOR i := 0 TO 9 DO
+			udpClient.Send(IpAddress:= clientAddr, Port:= sendPort, DataPointer:= ADR(txData), DataLength:= SIZEOF(txData));
+		END_FOR
+		
+		//methodTimeout(IN:= TRUE, PT:= delay);
+		//IF udpClient.Send(IpAddress:= clientAddr, Port:= sendPort, DataPointer:= ADR(txData), DataLength:= SIZEOF(txData)) THEN
+		//	ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'UDP message sent: %s', strArg:= txData);
+		//	udpTestDone := TRUE;
+		//	waitDelay(IN:= FALSE);
+		//	methodTimeout(IN:= FALSE);
+		//	TEST_FINISHED();
+		//ELSIF methodTimeout.Q THEN
+		//	AssertTrue(Condition:= FALSE, Message:= 'UDP client timed out sending data to the UDP server');
+		//	waitDelay(IN:= FALSE);
+		//	methodTimeout(IN:= FALSE);
+		//	TEST_FINISHED();
+		//END_IF
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>
