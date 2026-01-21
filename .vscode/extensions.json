@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "ms-python.black-formatter",
+        "nickmillerdev.pytest-fixtures",
+        "ms-vscode.test-adapter-converter",
+        "ms-python.python"
+    ]
+}

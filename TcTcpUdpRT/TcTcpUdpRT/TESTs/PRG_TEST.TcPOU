@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_TEST" Id="{cf0f37c5-f0ad-4057-9e93-4544d59fc08b}" SpecialFunc="None">
+    <Declaration><![CDATA[// Manually tested with a TCP/UDP script
+PROGRAM PRG_TEST
+VAR
+	fb_RingBuffer: RingBuffer_Test;
+	fb_TcpClient: TcpClient_Test;
+	fb_TcpServer: TcpServer_Test;
+	fb_UdpClient: UdpSendReceive_Test;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RUN_IN_SEQUENCE();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

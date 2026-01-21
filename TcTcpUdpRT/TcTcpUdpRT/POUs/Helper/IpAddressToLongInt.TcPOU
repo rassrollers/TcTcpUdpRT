@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="IpAddressToLongInt" Id="{d8ae664b-b2e8-040d-1421-255d7d4866da}" SpecialFunc="None">
+    <Declaration><![CDATA[// Format the string IP address to a long integer value.
+// '192.168.17.10' => 0xC0A8110A
+FUNCTION IpAddressToLongInt : UDINT
+VAR_INPUT
+	IpAddress: STRING(15);
+END_VAR
+VAR
+	i: UINT;
+	pos: INT;
+	value : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[FOR i := 0 TO 3 DO
+	IpAddressToLongInt := ROL(IpAddressToLongInt, 8);
+	IF i < 3 THEN
+		pos := FIND(STR1:= IpAddress, STR2:= '.');
+		value := STRING_TO_UDINT(LEFT(IpAddress, pos-1));
+	ELSE
+		value := STRING_TO_UDINT(IpAddress);
+	END_IF
+	IpAddressToLongInt := IpAddressToLongInt OR value;
+	IpAddress := DELETE(STR:= IpAddress, LEN:= pos, POS:= 1);
+END_FOR
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

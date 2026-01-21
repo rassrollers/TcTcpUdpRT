@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TcpClient_Test" Id="{59d0df3b-807f-0a6c-1561-f149e3a7dd3a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK TcpClient_Test EXTENDS FB_TestSuite
+VAR
+	startTcpClientTest		: BOOL;
+	tcpClientTestDone		: BOOL;
+	tcpServerTestTimeout	: TON := (PT:= T#2M);
+	
+	tcpClient	: TcTcpClient;
+	serverAddr	: STRING(15) := '192.168.1.119';
+	serverPort	: UINT := 9901;
+	txData		: STRING(25) := 'Hello from PLC TCP client';
+	txCounter	: UDINT;
+	rxData		: STRING;
+	rxCounter	: UDINT;
+	methodTimeout	: TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[tcpClient.Run();
+
+IF startTcpClientTest THEN
+	ConnectToTcpServer();
+	SendMessageToTcpServer();
+	ReceiveMessageFromTcpServer();
+	CloseConnectionToTcpServer();
+END_IF
+
+TEST('RunTcpClientTest');
+tcpServerTestTimeout(IN:= startTcpClientTest);
+IF tcpClientTestDone THEN
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+ELSIF tcpServerTestTimeout.Q THEN
+	AssertFalse(Condition:= tcpServerTestTimeout.Q, Message:= 'TcpClient_Test timed out while running');
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+ELSIF tcpClient.Error THEN
+	AssertFalse(Condition:= tcpClient.Error, Message:= tcpClient.GetError);
+	tcpServerTestTimeout(IN:= FALSE);
+	TEST_FINISHED();
+END_IF
+]]></ST>
+    </Implementation>
+    <Method Name="CloseConnectionToTcpServer" Id="{ceda6c12-8515-03f2-1281-4906cb4e9b48}">
+      <Declaration><![CDATA[METHOD CloseConnectionToTcpServer
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('CloseConnectionToTcpServer') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpClient.Disconnect() THEN
+		tcpClientTestDone := TRUE;
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP client timed out disconnecting from the TCP server');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ConnectToTcpServer" Id="{5b34737a-b8ed-0539-3fb7-3201b021f817}">
+      <Declaration><![CDATA[METHOD ConnectToTcpServer
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ConnectToTcpServer') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpClient.Connect(IpAddress:= serverAddr, Port:= serverPort) THEN
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP client timed out connecting to the TCP server');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveMessageFromTcpServer" Id="{b39640e8-cc92-0cda-0cc0-3f5c65598e33}">
+      <Declaration><![CDATA[METHOD ReceiveMessageFromTcpServer
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReceiveMessageFromTcpServer') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpClient.IsDataAvailable THEN
+		IF tcpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData), ReceivedLength=> rxCounter) THEN
+			ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'Message received: %s', strArg:= rxData);
+			AssertTrue(Condition:= rxCounter > 0, Message:= 'The data from the TCP server had a length of zero');
+			methodTimeout(IN:= FALSE);
+			TEST_FINISHED();
+		END_IF
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP client timed out waiting for data from the TCP server');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SendMessageToTcpServer" Id="{10966550-d438-07cc-3cdd-73aed67a4334}">
+      <Declaration><![CDATA[METHOD SendMessageToTcpServer
+VAR_INST
+	delay: TIME := T#15S;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('SendMessageToTcpServer') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF tcpClient.Send(DataPointer:= ADR(txData), DataLength:= SIZEOF(txData), DataSent=> txCounter) THEN
+		ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'Message sent: %s', strArg:= txData);
+		AssertTrue(Condition:= txCounter > 0, Message:= 'The data sent to the TCP server had a length of zero');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'TCP client timed out sending data to the TCP server');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

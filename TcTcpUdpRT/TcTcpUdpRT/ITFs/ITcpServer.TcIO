@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="ITcpServer" Id="{a70db2ca-9bd7-0034-12e2-dd90c81b940f}">
+    <Declaration><![CDATA[// Interface for the TCP server using the TF6311
+INTERFACE ITcpServer
+]]></Declaration>
+    <Method Name="CloseConnection" Id="{86b7bbc8-5d2a-0d5c-0cd5-2c293cc04137}">
+      <Declaration><![CDATA[// Close socket connection
+METHOD CloseConnection : BOOL  // Return TRUE if succesful
+]]></Declaration>
+    </Method>
+    <Property Name="Error" Id="{14529035-b249-0fac-1a69-48e6ba2427a6}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL]]></Declaration>
+      <Get Name="Get" Id="{cc92271a-f32d-0af4-0913-1557ea311cfb}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="GetError" Id="{29ccd301-14d7-0a59-3fe3-65410c4acbd2}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING]]></Declaration>
+      <Get Name="Get" Id="{19fe94f8-002c-0119-0da5-deeac07560c5}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="IsConnected" Id="{bb630ae7-f404-0b8f-096c-ee554f1f34dd}">
+      <Declaration><![CDATA[PROPERTY IsConnected : BOOL]]></Declaration>
+      <Get Name="Get" Id="{01b1bbdb-60e9-0904-1886-b7676798d851}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="IsDataAvailable" Id="{31a3642c-f096-0fe8-34ee-99b6eb3ffe12}">
+      <Declaration><![CDATA[PROPERTY IsDataAvailable : BOOL]]></Declaration>
+      <Get Name="Get" Id="{fab641b1-3928-0007-0e25-59d4954f99a1}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="OpenConnection" Id="{ef728646-350c-0128-2afe-13a701af4127}">
+      <Declaration><![CDATA[// Open a connection and starts to listening for client
+METHOD OpenConnection : BOOL  // Return TRUE if succesful
+VAR_INPUT
+	Port: UINT;  // Port to listening on
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="Receive" Id="{36280539-cc59-0c7c-04ad-db65b8a32316}">
+      <Declaration><![CDATA[// Get the received data
+METHOD Receive : BOOL  // Return TRUE if succesful
+VAR_INPUT
+	DataPointer	: POINTER TO BYTE;  // Pointer to data buffer
+	DataLength	: UDINT;  // Length of the data buffer
+END_VAR
+VAR_OUTPUT
+	ReceivedLength	: UDINT;  // Length of the received data
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ResetError" Id="{4c582c2f-84c0-09c1-10cd-5c0d847f26a8}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+    </Method>
+    <Method Name="Run" Id="{379de540-4c6c-0b21-2575-50642db4e9c5}">
+      <Declaration><![CDATA[// This method must be run cyclic to maintain the communincation between the PLC code and the I/O hardware.
+// ReceiveEvent and ReceiveData are used as callback in the context of this method (server and client functionality).
+METHOD Run : BOOL
+]]></Declaration>
+    </Method>
+    <Method Name="Send" Id="{4cae0f8e-ff67-0a14-13e0-bb838d550006}">
+      <Declaration><![CDATA[// Send data from client to server
+METHOD Send : BOOL  // Return TRUE if succesful
+VAR_INPUT
+	DataPointer	: POINTER TO BYTE;  // Pointer to data
+	DataLength	: UDINT;  // Length of the data
+END_VAR
+VAR_OUTPUT
+	DataSent	: UDINT;  // Number of bytes sent
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

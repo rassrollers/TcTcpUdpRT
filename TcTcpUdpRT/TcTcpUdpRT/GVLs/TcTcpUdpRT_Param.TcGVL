@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="TcTcpUdpRT_Param" Id="{3938037e-dac9-0412-34ea-b4b965f257e6}" ParameterList="True">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	RingBufferSize		: UDINT := 32768;  // Ring buffer sice for the receivers (32kB).
+	UdpSourcePortStart	: UINT := 51000;  // Starting range for source port of the UDP instances (51000).
+	ErrorStringSize		: UINT := 120;  // Size of error string (120).
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>
