@@ -23,14 +23,14 @@
 				<Data>10000101</Data>
 			</InitSymbol>
 			<InitSymbol>
-				<Name>PRG_TEST.fb_TcpServer.tcpServer.oid</Name>
+				<Name>PRG_TEST.fb_UdpClient.udpClient.oid</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000F}">OTCID</Type>
 				<Comment><![CDATA[ Object ID to Ethernet adapter]]></Comment>
 				<AreaNo>#x00000003</AreaNo>
 				<Data>10000101</Data>
 			</InitSymbol>
 			<InitSymbol>
-				<Name>PRG_TEST.fb_UdpClient.udpClient.oid</Name>
+				<Name>PRG_TEST.fb_TcpServer.tcpServer.oid</Name>
 				<Type GUID="{18071995-0000-0000-0000-00000000000F}">OTCID</Type>
 				<Comment><![CDATA[ Object ID to Ethernet adapter]]></Comment>
 				<AreaNo>#x00000003</AreaNo>

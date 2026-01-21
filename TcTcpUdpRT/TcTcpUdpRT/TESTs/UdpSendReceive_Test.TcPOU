@@ -6,12 +6,10 @@ VAR
 	startUdpTest		: BOOL;
 	udpTestDone			: BOOL;
 	waitListenTestDone	: BOOL;
-	waitReceiveTestDone	: BOOL;
-	waitDelay			: TON := (PT:= T#1S);
 	tcpServerTestTimeout	: TON := (PT:= T#2M);
 	
 	udpClient		: TcUdpSendReceive;
-	clientAddr		: STRING(15) := '192.168.17.119';
+	clientAddr		: STRING(15) := '192.168.1.119';
 	listenPort		: UINT := 9902;
 	sendPort		: UINT := 9901;
 	txData			: STRING(25) := 'Hello from PLC UDP client';
@@ -79,7 +77,6 @@ END_VAR]]></Declaration>
 		IF udpClient.Receive(DataPointer:= ADR(rxData), DataLength:= SIZEOF(rxData), ReceivedLength=> rxCounter) THEN
 			ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'UDP message received: %s', strArg:= rxData);
 			AssertTrue(Condition:= rxCounter > 0, Message:= 'The data from the UDP server had a length of zero');
-			waitReceiveTestDone := TRUE;
 			methodTimeout(IN:= FALSE);
 			TEST_FINISHED();
 		END_IF
@@ -99,25 +96,16 @@ VAR_INST
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF TEST_ORDERED('SendUdpMessage') THEN
-	waitDelay(IN:= TRUE);
-	IF waitDelay.Q THEN
-		FOR i := 0 TO 9 DO
-			udpClient.Send(IpAddress:= clientAddr, Port:= sendPort, DataPointer:= ADR(txData), DataLength:= SIZEOF(txData));
-		END_FOR
-		
-		//methodTimeout(IN:= TRUE, PT:= delay);
-		//IF udpClient.Send(IpAddress:= clientAddr, Port:= sendPort, DataPointer:= ADR(txData), DataLength:= SIZEOF(txData)) THEN
-		//	ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'UDP message sent: %s', strArg:= txData);
-		//	udpTestDone := TRUE;
-		//	waitDelay(IN:= FALSE);
-		//	methodTimeout(IN:= FALSE);
-		//	TEST_FINISHED();
-		//ELSIF methodTimeout.Q THEN
-		//	AssertTrue(Condition:= FALSE, Message:= 'UDP client timed out sending data to the UDP server');
-		//	waitDelay(IN:= FALSE);
-		//	methodTimeout(IN:= FALSE);
-		//	TEST_FINISHED();
-		//END_IF
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF udpClient.Send(IpAddress:= clientAddr, Port:= sendPort, DataPointer:= ADR(txData), DataLength:= SIZEOF(txData)) THEN
+		ADSLOGSTR(msgCtrlMask:= ADSLOG_MSGTYPE_LOG, msgFmtStr:= 'UDP message sent: %s', strArg:= txData);
+		udpTestDone := TRUE;
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'UDP client timed out sending data to the UDP server');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
 	END_IF
 END_IF]]></ST>
       </Implementation>

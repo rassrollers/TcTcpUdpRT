@@ -35,7 +35,7 @@
     <SelectedLibraryCategories>
       <Id xmlns="">{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
     </SelectedLibraryCategories>
-    <Released>false</Released>
+    <Released>true</Released>
     <Company>TcInterfaces</Company>
     <Author>R&amp;B</Author>
     <ProjectVersion>1.0.0.0</ProjectVersion>
