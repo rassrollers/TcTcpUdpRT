@@ -13,7 +13,7 @@ VAR
 	hrInit				: HRESULT;
 	hrSend				: HRESULT;
 	
-	listenPort			: UINT;  // Port registered for the UPD to listen on
+	listenPort			: UINT;  // Port registered for the UDP to listen on
 	sourcePort			: UINT;  // Set by the FB_init
 	rxPort				: UINT;  // Port of the last received message
 	
