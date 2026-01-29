@@ -13,7 +13,8 @@ VAR
 	clientId			: UDINT;  // Client socket ID
 	hrInit				: HRESULT;
 	hr					: HRESULT;
-	                	
+	
+	listenPort			: UINT;  // Port registered for the TCP server to listen on
 	remoteIpAddress		: UDINT;  // HEX big endian, (192.168.17.10 = 0xC0A8110A)
 	packagesReceived	: UDINT;
 	lastTcpEvent		: TCPIP_EVENT;
@@ -39,6 +40,7 @@ END_IF
 IF serverId <> 0 THEN  
 	ipTcp.FreeSocket(serverId);  // Free the server socket
 	serverId := 0;
+	listenPort := 0;
 	CloseConnection := TRUE;
 ELSE
 	_error := TRUE;
@@ -170,6 +172,7 @@ END_VAR
 	END_IF
 	
 	IF ipTcp.Listen(socketId:= serverId, tcpPort:= Port) = S_OK THEN
+		listenPort := Port;
 		OpenConnection := TRUE;
 	ELSE
 		_error := TRUE;
@@ -215,7 +218,7 @@ END_IF
 {attribute 'c++_compatible'}
 {attribute 'minimal_input_size' := '4'}
 {attribute 'pack_mode' := '4'}
-//{attribute 'hide'}
+{attribute 'hide'}
 // Callback from I/O when new data is received
 METHOD ReceiveData : HRESULT
 VAR_INPUT

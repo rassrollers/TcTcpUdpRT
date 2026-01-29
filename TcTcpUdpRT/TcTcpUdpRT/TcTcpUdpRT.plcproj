@@ -38,7 +38,7 @@
     <Released>true</Released>
     <Company>TcInterfaces</Company>
     <Author>R&amp;B</Author>
-    <ProjectVersion>1.0.0.0</ProjectVersion>
+    <ProjectVersion>1.0.0.1</ProjectVersion>
     <Title>TcTcpUdpRT</Title>
     <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
     <CombineIds>true</CombineIds>
