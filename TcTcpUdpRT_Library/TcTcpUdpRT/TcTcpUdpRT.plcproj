@@ -17,11 +17,11 @@
     <Implicit_Jitter_Distribution>{ae379a49-beca-44b2-bb03-ba9ce86a0ccc}</Implicit_Jitter_Distribution>
     <LibraryReferences>{6be6b7bd-20f7-499a-bb13-d2aed395b9c1}</LibraryReferences>
     <Company>TcInterfaces</Company>
-    <Released>false</Released>
+    <Released>true</Released>
     <Title>TcTcpUdpRT</Title>
     <ProjectVersion>1.1.0.0</ProjectVersion>
     <LibraryCategories>
-      <LibraryCategory xmlns="">
+      <LibraryCategory>
         <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
         <Version>1.0.0.0</Version>
         <ParentCategory>
@@ -29,14 +29,14 @@
         </ParentCategory>
         <DefaultName>Communication</DefaultName>
       </LibraryCategory>
-      <LibraryCategory xmlns="">
+      <LibraryCategory>
         <Id>{591ebe4c-0c5c-40b4-9767-06f84482bb5a}</Id>
         <Version>1.0.0.0</Version>
         <DefaultName>TcInterfaces</DefaultName>
       </LibraryCategory>
     </LibraryCategories>
     <SelectedLibraryCategories>
-      <Id xmlns="">{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
+      <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
     </SelectedLibraryCategories>
     <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
     <Author>R&amp;B</Author>
@@ -129,8 +129,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-  <Data>
-    <o xml:space="preserve" t="OptionKey">
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
@@ -206,14 +206,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-  </Data>
-  <TypeList>
-    <Type n="Boolean">System.Boolean</Type>
-    <Type n="Hashtable">System.Collections.Hashtable</Type>
-    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-    <Type n="String">System.String</Type>
-  </TypeList>
-</XmlArchive>
+        </Data>
+        <TypeList>
+          <Type n="Boolean">System.Boolean</Type>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

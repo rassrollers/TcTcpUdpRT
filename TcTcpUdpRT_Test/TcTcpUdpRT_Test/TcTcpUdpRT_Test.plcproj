@@ -52,13 +52,9 @@
     <Compile Include="TESTs\UdpSendReceive_Test.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Version\Global_Version.TcGVL">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="TESTs" />
-    <Folder Include="Version" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
