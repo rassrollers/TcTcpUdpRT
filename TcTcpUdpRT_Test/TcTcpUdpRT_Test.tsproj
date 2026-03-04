@@ -13,7 +13,7 @@
 			</Tasks>
 		</System>
 		<Plc>
-			<Project File="TcTcpUdpRT.xti"/>
+			<Project File="TcTcpUdpRT_Test.xti"/>
 		</Plc>
 		<Io>
 			<Device File="EthernetRT (RT-Ethernet Adapter).xti" Id="1"/>

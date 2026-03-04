@@ -8,7 +8,7 @@
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
-    <Name>TcTcpUdpRT</Name>
+    <Name>TcTcpUdpRT_Test</Name>
     <ProgramVersion>3.1.4026.20</ProgramVersion>
     <WriteBookmarksToFile>true</WriteBookmarksToFile>
     <Application>{4de60582-3cb0-4381-8b12-7d86090b1431}</Application>
@@ -18,69 +18,26 @@
     <Implicit_Jitter_Distribution>{776f58bb-a486-4fab-8c6c-1e57b03e4db4}</Implicit_Jitter_Distribution>
     <LibraryReferences>{89fd6fca-c750-41be-9071-f8378747b396}</LibraryReferences>
     <LibraryCategories>
-      <LibraryCategory xmlns="">
-        <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
-        <Version>1.0.0.0</Version>
-        <ParentCategory>
-          <Id>{591ebe4c-0c5c-40b4-9767-06f84482bb5a}</Id>
-        </ParentCategory>
-        <DefaultName>Communication</DefaultName>
-      </LibraryCategory>
-      <LibraryCategory xmlns="">
-        <Id>{591ebe4c-0c5c-40b4-9767-06f84482bb5a}</Id>
-        <Version>1.0.0.0</Version>
-        <DefaultName>TcInterfaces</DefaultName>
-      </LibraryCategory>
     </LibraryCategories>
     <SelectedLibraryCategories>
-      <Id xmlns="">{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
     </SelectedLibraryCategories>
-    <Released>true</Released>
-    <Company>TcInterfaces</Company>
-    <Author>R&amp;B</Author>
-    <ProjectVersion>1.0.0.1</ProjectVersion>
-    <Title>TcTcpUdpRT</Title>
-    <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
+    <Released>false</Released>
+    <Company>
+    </Company>
+    <Author>
+    </Author>
+    <ProjectVersion>
+    </ProjectVersion>
+    <Title>
+    </Title>
     <CombineIds>true</CombineIds>
+    <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Example\AppExample.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Example\CommunicationExample.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="GVLs\TcTcpUdpRT_Param.TcGVL">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="ITFs\ITcpClient.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="ITFs\ITcpServer.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="ITFs\IUdpSendReceive.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\Helper\IpAddressToLongInt.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Helper\RingBuffer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\TcTcpClient.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\TcTcpServer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\TcUdpSendReceive.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TESTs\PRG_TEST.TcPOU">
+    <Compile Include="PRG_TEST.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TESTs\RingBuffer_Test.TcPOU">
@@ -100,15 +57,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="DUTs" />
-    <Folder Include="GVLs" />
-    <Folder Include="ITFs" />
-    <Folder Include="Example" />
-    <Folder Include="POUs\Helper" />
     <Folder Include="TESTs" />
     <Folder Include="Version" />
-    <Folder Include="VISUs" />
-    <Folder Include="POUs" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -119,19 +69,23 @@
       <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_System</Namespace>
     </PlaceholderReference>
-    <PlaceholderReference Include="Tc2_Utilities">
-      <DefaultResolution>Tc2_Utilities, * (Beckhoff Automation GmbH)</DefaultResolution>
-      <Namespace>Tc2_Utilities</Namespace>
-    </PlaceholderReference>
     <PlaceholderReference Include="Tc3_Module">
       <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc3_Module</Namespace>
       <SystemLibrary>true</SystemLibrary>
     </PlaceholderReference>
+    <PlaceholderReference Include="TcTcpUdpRT">
+      <DefaultResolution>[TcTcpUdpRT], * (TcInterfaces)</DefaultResolution>
+      <Namespace>TcTcpUdpRT</Namespace>
+    </PlaceholderReference>
     <PlaceholderReference Include="TcUnit">
       <DefaultResolution>TcUnit, * (www.tcunit.org)</DefaultResolution>
       <Namespace>TcUnit</Namespace>
       <Parameters>
+        <Parameter ListName="GVL_PARAM_TCUNIT">
+          <Key>TIMEBETWEENTESTSUITESEXECUTION</Key>
+          <Value>TIME#1s0ms</Value>
+        </Parameter>
         <Parameter ListName="GVL_PARAM_TCUNIT">
           <Key>XUNITENABLEPUBLISH</Key>
           <Value>TRUE</Value>
@@ -139,10 +93,6 @@
         <Parameter ListName="GVL_PARAM_TCUNIT">
           <Key>XUNITFILEPATH</Key>
           <Value>'/home/Administrator/tcunit_xunit_testresults.xml'</Value>
-        </Parameter>
-        <Parameter ListName="GVL_PARAM_TCUNIT">
-          <Key>TIMEBETWEENTESTSUITESEXECUTION</Key>
-          <Value>TIME#1s0ms</Value>
         </Parameter>
       </Parameters>
     </PlaceholderReference>
@@ -172,6 +122,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="TcTcpUdpRT.tmc">
+      <SubType>Content</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TcTcpUdpRT_Test.tmc">
       <SubType>Content</SubType>
     </None>
   </ItemGroup>
