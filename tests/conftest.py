@@ -4,7 +4,7 @@ import pytest
     
 def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--plc.ip", action="store", default="192.168.1.10")
-    parser.addoption("--plc.netid", action="store", default="192.168.17.10.1.1")
+    parser.addoption("--plc.netid", action="store", default="192.168.1.10.1.1")
     parser.addoption("--plc.netport", action="store", default=851)
     parser.addoption("--plc.serverport", action="store", default=9900)
     parser.addoption("--plc.clientport", action="store", default=9901)

@@ -3,22 +3,25 @@
   <PropertyGroup>
     <FileVersion>1.0.0.0</FileVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{6717c064-088b-4645-a1c0-b88c6f991db5}</ProjectGuid>
+    <ProjectGuid>{d251c291-63fc-469f-94b4-5f1ff97ba3a2}</ProjectGuid>
     <SubObjectsSortedByName>true</SubObjectsSortedByName>
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
     <Name>TcTcpUdpRT</Name>
     <ProgramVersion>3.1.4026.20</ProgramVersion>
-    <WriteBookmarksToFile>true</WriteBookmarksToFile>
-    <Application>{4de60582-3cb0-4381-8b12-7d86090b1431}</Application>
-    <TypeSystem>{13026e28-6e8c-471d-affb-225cba9513f8}</TypeSystem>
-    <Implicit_Task_Info>{99f58c05-2a15-4862-b575-97ab9bf99d62}</Implicit_Task_Info>
-    <Implicit_KindOfTask>{f082a0f6-7c23-4be5-b0b8-53fa602e6e45}</Implicit_KindOfTask>
-    <Implicit_Jitter_Distribution>{776f58bb-a486-4fab-8c6c-1e57b03e4db4}</Implicit_Jitter_Distribution>
-    <LibraryReferences>{89fd6fca-c750-41be-9071-f8378747b396}</LibraryReferences>
+    <Application>{7b5f856d-9454-42dd-affe-0acb42894402}</Application>
+    <TypeSystem>{75647d6b-82c8-4291-86b3-7edf3f3d422d}</TypeSystem>
+    <Implicit_Task_Info>{c07cfc63-c44c-4858-908f-a2c67164d159}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{fd1ecdc3-8a34-4134-abf8-b7eb25bd99ee}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{ae379a49-beca-44b2-bb03-ba9ce86a0ccc}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{6be6b7bd-20f7-499a-bb13-d2aed395b9c1}</LibraryReferences>
+    <Company>TcInterfaces</Company>
+    <Released>true</Released>
+    <Title>TcTcpUdpRT</Title>
+    <ProjectVersion>1.1.0.0</ProjectVersion>
     <LibraryCategories>
-      <LibraryCategory xmlns="">
+      <LibraryCategory>
         <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
         <Version>1.0.0.0</Version>
         <ParentCategory>
@@ -26,89 +29,26 @@
         </ParentCategory>
         <DefaultName>Communication</DefaultName>
       </LibraryCategory>
-      <LibraryCategory xmlns="">
+      <LibraryCategory>
         <Id>{591ebe4c-0c5c-40b4-9767-06f84482bb5a}</Id>
         <Version>1.0.0.0</Version>
         <DefaultName>TcInterfaces</DefaultName>
       </LibraryCategory>
     </LibraryCategories>
     <SelectedLibraryCategories>
-      <Id xmlns="">{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
+      <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
     </SelectedLibraryCategories>
-    <Released>true</Released>
-    <Company>TcInterfaces</Company>
-    <Author>R&amp;B</Author>
-    <ProjectVersion>1.0.0.1</ProjectVersion>
-    <Title>TcTcpUdpRT</Title>
     <GlobalVersionStructureIncluded>true</GlobalVersionStructureIncluded>
-    <CombineIds>true</CombineIds>
+    <Author>R&amp;B</Author>
+    <VirtualLibrary>true</VirtualLibrary>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Example\AppExample.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Example\CommunicationExample.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="GVLs\TcTcpUdpRT_Param.TcGVL">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="ITFs\ITcpClient.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="ITFs\ITcpServer.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="ITFs\IUdpSendReceive.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="PlcTask.TcTTO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Helper\IpAddressToLongInt.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Helper\RingBuffer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\TcTcpClient.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\TcTcpServer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\TcUdpSendReceive.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TESTs\PRG_TEST.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TESTs\RingBuffer_Test.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TESTs\TcpClient_Test.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TESTs\TcpServer_Test.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TESTs\UdpSendReceive_Test.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Version\Global_Version.TcGVL">
-      <SubType>Code</SubType>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="DUTs" />
     <Folder Include="GVLs" />
     <Folder Include="ITFs" />
     <Folder Include="Example" />
-    <Folder Include="POUs\Helper" />
-    <Folder Include="TESTs" />
-    <Folder Include="Version" />
-    <Folder Include="VISUs" />
     <Folder Include="POUs" />
+    <Folder Include="POUs\Helper" />
+    <Folder Include="Version" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -128,32 +68,46 @@
       <Namespace>Tc3_Module</Namespace>
       <SystemLibrary>true</SystemLibrary>
     </PlaceholderReference>
-    <PlaceholderReference Include="TcUnit">
-      <DefaultResolution>TcUnit, * (www.tcunit.org)</DefaultResolution>
-      <Namespace>TcUnit</Namespace>
-      <Parameters>
-        <Parameter ListName="GVL_PARAM_TCUNIT">
-          <Key>XUNITENABLEPUBLISH</Key>
-          <Value>TRUE</Value>
-        </Parameter>
-        <Parameter ListName="GVL_PARAM_TCUNIT">
-          <Key>XUNITFILEPATH</Key>
-          <Value>'/home/Administrator/tcunit_xunit_testresults.xml'</Value>
-        </Parameter>
-        <Parameter ListName="GVL_PARAM_TCUNIT">
-          <Key>TIMEBETWEENTESTSUITESEXECUTION</Key>
-          <Value>TIME#1s0ms</Value>
-        </Parameter>
-      </Parameters>
-    </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
-    <PlaceholderResolution Include="SysDir">
-      <Resolution>SysDir, 3.5.17.0 (System)</Resolution>
-    </PlaceholderResolution>
-    <PlaceholderResolution Include="SysFile">
-      <Resolution>SysFile, 3.5.17.0 (System)</Resolution>
-    </PlaceholderResolution>
+    <Compile Include="Example\AppExample.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Example\CommunicationExample.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="GVLs\TcTcpUdpRT_Param.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ITFs\ITcpClient.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ITFs\ITcpServer.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ITFs\IUdpSendReceive.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Helper\IpAddressToLongInt.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\Helper\RingBuffer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\TcTcpClient.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\TcTcpServer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\TcUdpSendReceive.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Version\Global_Version.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
     <PlaceholderResolution Include="Tc2_Standard">
       <Resolution>Tc2_Standard, 3.4.5.0 (Beckhoff Automation GmbH)</Resolution>
     </PlaceholderResolution>
@@ -165,9 +119,6 @@
     </PlaceholderResolution>
     <PlaceholderResolution Include="Tc3_Module">
       <Resolution>Tc3_Module, 3.4.5.0 (Beckhoff Automation GmbH)</Resolution>
-    </PlaceholderResolution>
-    <PlaceholderResolution Include="TcUnit">
-      <Resolution>TcUnit, 1.3.1 (www.tcunit.org)</Resolution>
     </PlaceholderResolution>
   </ItemGroup>
   <ItemGroup>

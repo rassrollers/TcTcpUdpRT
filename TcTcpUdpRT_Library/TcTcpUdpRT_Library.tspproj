@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.20">
+	<Project ProjectGUID="{9015352C-17DE-460D-AD1F-ECE427E0217C}" Target64Bit="true" ShowHideConfigurations="#x6">
+		<Plc>
+			<Project GUID="{D251C291-63FC-469F-94B4-5F1FF97BA3A2}" Name="TcTcpUdpRT" PrjFilePath="TcTcpUdpRT\TcTcpUdpRT.plcproj" TmcFilePath="TcTcpUdpRT\TcTcpUdpRT.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e"/>
+		</Plc>
+	</Project>
+</TcSmProject>

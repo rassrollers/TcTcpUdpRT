@@ -7,6 +7,7 @@ _Releases/
 # TwinCAT PLC
 *.plcproj.bak
 *.plcproj.orig
+*.noprjfile
 *.tpy
 *.tclrs
 #*.library

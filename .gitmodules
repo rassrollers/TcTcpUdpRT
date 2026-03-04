@@ -1,0 +1,3 @@
+[submodule "TcLibraryCategories"]
+	path = TcLibraryCategories
+	url = git@github.com:rassrollers/TcLibraryCategories.git
