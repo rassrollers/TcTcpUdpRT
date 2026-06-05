@@ -1,0 +1,348 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TcArpPing" Id="{f0f8b11e-4249-0036-00b4-fe7c32d4cb62}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'c++_compatible'}
+// ARP and Ping implementation for the TF6311 license.
+// Use the IArpPing interface to interact with this FB.
+FUNCTION_BLOCK TcArpPing IMPLEMENTS ITcIoArpPingRecv, IArpPing
+VAR
+	{attribute 'TcInitSymbol'}
+    oid					: OTCID;  // Object ID to Ethernet adapter
+    ipArpPing			: ITcIoArpPing;	// Interface pointer to ARP and Ping
+	hrInit				: HRESULT;
+	hr					: HRESULT;
+
+	_timeout			: TON;
+	_delay				: TIME := T#5S;
+	_arpRepliedIpAddress	: STRING(15);
+	_arpRepliedMac		: Global.ETHERNET_ADDRESS;
+	_requestingArp		: BOOL;
+	_arpReplied			: BOOL;
+	_pingRepliedIpAddress	: STRING(15);
+	_requestingPing		: BOOL;
+	_pingReplied		: BOOL;
+	_startTime			: ULINT;
+	_stopTime			: ULINT;
+	_error				: BOOL;
+	_errorString		: STRING(TcTcpUdpRT_Param.ErrorStringSize);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="Arp" Id="{2744815b-4582-0309-199e-23c38973a9b4}">
+      <Declaration><![CDATA[{attribute 'hide'}
+// WIP: Does not return the expected MAC address. Have to talk to Beckhoff first.
+
+(* ARP an IP address*)
+METHOD Arp : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	IpAddress	: STRING(15);
+	Timeout	: TIME := TIME#5s0ms;
+END_VAR
+VAR_OUTPUT
+	ReplyIpAddress	: STRING(15);
+	ReplyTime		: LTIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _requestingArp THEN
+	_arpReplied := FALSE;
+	_delay := Timeout;
+	hr := ipArpPing.ArpRequest(ipAddr:= IpAddressToLongInt(IpAddress:= IpAddress));
+	IF FAILED(hr) THEN
+		_error := TRUE;
+		_errorString := CONCAT('ARP/Ping: Failed to ARP an IP: ', CONCAT(IpAddress, CONCAT(', HRESULT: ', TO_STRING(hr))));
+	ELSE
+		_startTime := F_GetSystemTime();
+		_requestingArp := TRUE;
+	END_IF
+ELSE
+	_timeout(IN:= TRUE, PT:= _delay);
+	IF _arpReplied THEN
+		_stopTime := F_GetSystemTime();
+		_timeout(IN:= FALSE);
+		_requestingArp := FALSE;
+		ReplyIpAddress := _arpRepliedIpAddress;
+		ReplyTime := ULINT_TO_LTIME(_stopTime - _startTime);;
+		Arp := IpAddress = _arpRepliedIpAddress;
+	ELSIF _timeout.Q THEN
+		_error := TRUE;
+		_errorString := CONCAT('ARP/Ping: Timeout while ARP an IP: ', IpAddress);
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ArpReply" Id="{1f1a51f5-66f7-05a4-0fb7-b988e0894d6d}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+METHOD ArpReply : Global.HRESULT
+VAR_INPUT
+	ipAddr	: UDINT;
+	macAddr	: Global.ETHERNET_ADDRESS;
+	pVlan	: POINTER TO Global.ETYPE_VLAN_HEADER := 0;
+END_VAR
+VAR
+	i : INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_arpRepliedIpAddress := LongIntToIpAddress(IntIpAddress:= ipAddr);
+_arpRepliedMac := macAddr;
+_arpReplied := TRUE;
+ArpReply := GVL.S_OK;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Error" Id="{653f09e0-eb77-0493-228c-9f003f35cb6b}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL
+]]></Declaration>
+      <Get Name="Get" Id="{82bd989c-48d3-0d40-306a-bd7492f576cc}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Error := _error;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_exit" Id="{ea45de8b-e394-0688-101b-e1256a135024}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT bInCopyCode AND ipArpPing <> 0) THEN // no online change -> shutdown
+	ipArpPing.UnregisterReceiver(ipRecv:= THIS^);
+	FW_SafeRelease(ADR(ipArpPing));
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{b449c17b-07f8-0c6f-2db2-6ef700ac011b}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN // no online change
+	IF ipArpPing = 0 THEN
+		hrInit := FW_ObjMgr_GetObjectInstance(oid:=oid, iid:=TC_GLOBAL_IID_LIST.IID_ITcIoArpPing, pipUnk:=ADR(ipArpPing));  // Get interface pointer from I/O
+		IF FAILED(hrInit) THEN
+          	FW_SafeRelease(ADR(ipArpPing));
+			_error := TRUE;
+			_errorString := 'ARP/Ping: Failed to get object instance';
+		ELSE
+			hr := ipArpPing.RegisterReceiver(ipRecv:= THIS^);
+			IF FAILED(hr) THEN
+				_error := TRUE;
+				_errorString := 'ARP/Ping: Failed register receiver instance';
+			END_IF
+		END_IF
+	 ELSIF oid = 0 THEN
+		_error := TRUE;
+		_errorString := 'ARP/Ping: No object ID for ethernet adapter';
+        hrInit := ERR_INVALID_PARAM;                 
+    END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_reinit" Id="{deb78b75-53d0-0ed1-140f-d6aad169ffa6}">
+      <Declaration><![CDATA[{attribute 'hide'}
+METHOD FB_reinit : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (ipArpPing <> 0) THEN 
+	ipArpPing.RegisterReceiver(ipRecv:= THIS^);
+	IF FAILED(hr) THEN
+		_error := TRUE;
+		_errorString := 'ARP/Ping: Failed reregister receiver instance';
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="GetError" Id="{e0c13b7d-e93a-0a3b-2205-4fa6df1adc8f}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)
+]]></Declaration>
+      <Get Name="Get" Id="{faeae48a-2957-0cc3-34fa-b23764be4da2}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[GetError := _errorString;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="Ping" Id="{bc748112-b84b-0050-2f77-dbb8a93db9ad}">
+      <Declaration><![CDATA[(* Ping an IP address*)
+METHOD Ping : BOOL (* Return TRUE if succesful*)
+VAR_INPUT
+	IpAddress	: STRING(15);
+	Timeout		: TIME := T#5S;
+END_VAR
+VAR_OUTPUT
+	ReplyIpAddress	: STRING(15);
+	ReplyTime		: LTIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _requestingPing THEN
+	_pingReplied := FALSE;
+	_delay := Timeout;
+	hr := ipArpPing.PingRequest(ipAddr:= IpAddressToLongInt(IpAddress:= IpAddress));
+	IF FAILED(hr) THEN
+		_error := TRUE;
+		_errorString := CONCAT('ARP/Ping: Failed to ping IP: ', CONCAT(IpAddress, CONCAT(', HRESULT: ', TO_STRING(hr))));
+	ELSE
+		_startTime := F_GetSystemTime();
+		_requestingPing := TRUE;
+	END_IF
+ELSE
+	_timeout(IN:= TRUE, PT:= _delay);
+	IF _pingReplied THEN
+		_stopTime := F_GetSystemTime();
+		_timeout(IN:= FALSE);
+		_requestingPing := FALSE;
+		ReplyIpAddress := _pingRepliedIpAddress;
+		ReplyTime := ULINT_TO_LTIME(_stopTime - _startTime);;
+		Ping := IpAddress = _pingRepliedIpAddress;
+	ELSIF _timeout.Q THEN
+		_error := TRUE;
+		_errorString := CONCAT('ARP/Ping: Timeout while pinging IP: ', IpAddress);
+	END_IF
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PingReply" Id="{a2c159b4-d967-0ec7-0552-3420586dd3f3}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+METHOD PingReply : Global.HRESULT
+VAR_INPUT
+	ipAddr	: UDINT;
+	nData	: UDINT;
+	pData	: Global.PVOID;
+	pVlan	: POINTER TO Global.ETYPE_VLAN_HEADER := 0;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pingRepliedIpAddress := LongIntToIpAddress(IntIpAddress:= ipAddr);
+_pingReplied := TRUE;
+PingReply := GVL.S_OK;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ResetError" Id="{c3ba21f4-8fac-02b5-23de-45bcf116e5d0}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_error := FALSE;
+_errorString := '';
+_requestingPing:= FALSE;
+_pingReplied := FALSE;
+_timeout(IN:= FALSE);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Run" Id="{7d4d2067-6853-08e0-07cd-13e9b76d3d0f}">
+      <Declaration><![CDATA[(* This method must be run cyclic to maintain the communincation between the PLC code and the I/O hardware.
+ ArpReply and PingReply are used as callback in the context of this method (ARP and Ping functionality).*)
+METHOD Run : BOOL
+VAR
+	hRes: HRESULT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ipArpPing <> 0 THEN
+	hRes := ipArpPing.CheckReceived();;
+	IF hRes = S_OK THEN
+		Run := TRUE;
+	ELSE
+		_error := TRUE;
+		_errorString := CONCAT('ARP/Ping: Run error, HRESULT: ', DWORD_TO_HEXSTR(in:= DINT_TO_DWORD(hRes), iPrecision:= 8, bLoCase:= FALSE));
+	END_IF
+ELSE
+	_error := TRUE;
+	_errorString := 'ARP/Ping: No interface pointer to run CheckReceived';
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcAddRef" Id="{d0738f75-eba2-01e0-0201-c506af35303d}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TcAddRef is not used in the ARP/Ping interface
+METHOD TcAddRef : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcQueryInterface" Id="{22533951-7a00-02e4-1e5c-74a0ee0b5aa6}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TwinCAT uses this method to detect that the corresponding interface was implemented
+METHOD TcQueryInterface : Global.HRESULT
+VAR_INPUT
+	iid	: REFERENCE TO Global.IID;
+	pipItf	: POINTER TO Global.PVOID;
+END_VAR
+VAR
+	ipArpPingRecv : ITcIoArpPingRecv;
+	ipUnknown : ITcUnknown;   
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcIoArpPingRecv)) THEN
+	ipArpPingRecv := THIS^; // cast to interface pointer
+	pipItf^ := ITCUNKNOWN_TO_PVOID(ipArpPingRecv);
+	TcAddRef();
+	TcQueryInterface := S_OK;
+ELSIF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcUnknown)) THEN
+	ipUnknown := THIS^; // cast to interface pointer
+	pipItf^ := ITCUNKNOWN_TO_PVOID(ipUnknown);
+	TcAddRef();
+	TcQueryInterface := S_OK;
+ELSE
+	TcQueryInterface := E_HRESULTAdsErr.NOINTERFACE ; //Call super if this fb extends some other
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcRelease" Id="{d28f5a60-e8d5-093f-00c6-3a075c042d1d}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{attribute 'hide'}
+// TcRelease is not used in the ARP/Ping interface
+METHOD TcRelease : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

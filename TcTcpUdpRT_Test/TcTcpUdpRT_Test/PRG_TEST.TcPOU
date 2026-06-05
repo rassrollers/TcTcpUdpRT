@@ -5,9 +5,12 @@
 PROGRAM PRG_TEST
 VAR
 	fb_RingBuffer: RingBuffer_Test;
+	
 	fb_TcpClient: TcpClient_Test;
 	fb_TcpServer: TcpServer_Test;
 	fb_UdpClient: UdpSendReceive_Test;
+	
+	fb_ArpPing: ArpPing_Test;
 END_VAR
 ]]></Declaration>
     <Implementation>

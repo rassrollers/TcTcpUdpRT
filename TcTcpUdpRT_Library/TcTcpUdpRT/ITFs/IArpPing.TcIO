@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="IArpPing" Id="{4e78a900-9c60-05be-3d40-45dbd0c5f57a}">
+    <Declaration><![CDATA[INTERFACE IArpPing
+]]></Declaration>
+    <Method Name="Arp" Id="{4a9ed16f-f419-0268-3916-1444a03198b0}">
+      <Declaration><![CDATA[{attribute 'hide'}
+// WIP: Does not return the expected MAC address. Have to talk to Beckhoff first.
+
+// ARP an IP address
+METHOD Arp : BOOL // Return TRUE if succesful
+VAR_INPUT
+	IpAddress	: STRING(15);
+	Timeout		: TIME := T#5S;
+END_VAR
+VAR_OUTPUT
+	ReplyIpAddress	: STRING(15);
+	ReplyTime		: LTIME;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Property Name="Error" Id="{d176b5eb-6ea7-0e72-2c3b-201a57a43551}">
+      <Declaration><![CDATA[PROPERTY Error : BOOL]]></Declaration>
+      <Get Name="Get" Id="{e5ccaec2-d890-0dfe-2ddb-7ba86d22fda3}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="GetError" Id="{424291ac-e85a-0bf4-3ec8-8a0f6eb7469a}">
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)]]></Declaration>
+      <Get Name="Get" Id="{3a410bcc-7f60-0d21-3b2f-64cfcb9fac44}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="Ping" Id="{6ccc9e13-e6b9-0eb8-334f-fc7a1194e29f}">
+      <Declaration><![CDATA[// Ping an IP address
+METHOD Ping : BOOL // Return TRUE if succesful
+VAR_INPUT
+	IpAddress	: STRING(15);
+	Timeout		: TIME := T#5S;
+END_VAR
+VAR_OUTPUT
+	ReplyIpAddress	: STRING(15);
+	ReplyTime		: LTIME;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="ResetError" Id="{06e9aae2-424b-0ca7-196f-fe55bc65e032}">
+      <Declaration><![CDATA[METHOD ResetError
+]]></Declaration>
+    </Method>
+    <Method Name="Run" Id="{2ce5f862-d756-0394-10a4-c1ca78f0fa20}">
+      <Declaration><![CDATA[// This method must be run cyclic to maintain the communincation between the PLC code and the I/O hardware.
+// ArpReply and PingReply are used as callback in the context of this method (ARP and Ping functionality).
+METHOD Run : BOOL
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

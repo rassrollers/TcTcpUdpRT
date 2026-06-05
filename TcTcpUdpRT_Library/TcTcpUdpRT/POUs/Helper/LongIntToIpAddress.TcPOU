@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="LongIntToIpAddress" Id="{269090d9-814d-085b-1f4f-2d97c1cc7cdf}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION LongIntToIpAddress : STRING(15)
+VAR_INPUT
+	IntIpAddress: UDINT;
+END_VAR
+VAR
+	octet1 : STRING;
+    octet2 : STRING;
+    octet3 : STRING;
+    octet4 : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[octet1 := UDINT_TO_STRING(SHR(IntIpAddress, 24) AND 16#FF);
+octet2 := UDINT_TO_STRING(SHR(IntIpAddress, 16) AND 16#FF);
+octet3 := UDINT_TO_STRING(SHR(IntIpAddress, 8) AND 16#FF);
+octet4 := UDINT_TO_STRING(IntIpAddress AND 16#FF);
+LongIntToIpAddress := CONCAT(octet1, CONCAT('.', CONCAT(octet2, CONCAT('.', CONCAT(octet3, CONCAT('.', octet4))))));
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
