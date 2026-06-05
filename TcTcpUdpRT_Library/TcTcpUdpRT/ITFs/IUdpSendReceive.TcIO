@@ -11,7 +11,7 @@ INTERFACE IUdpSendReceive
       </Get>
     </Property>
     <Property Name="GetError" Id="{ea6213b4-85ef-03c8-02bd-e3bb8c2de267}">
-      <Declaration><![CDATA[PROPERTY GetError : STRING]]></Declaration>
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)]]></Declaration>
       <Get Name="Get" Id="{fd34daa6-9d49-09df-2ad3-ade1f3637c41}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>

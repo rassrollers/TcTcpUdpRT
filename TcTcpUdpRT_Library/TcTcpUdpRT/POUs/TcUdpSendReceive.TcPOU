@@ -8,7 +8,7 @@ FUNCTION_BLOCK TcUdpSendReceive IMPLEMENTS ITcIoUdpProtocolRecv, IUdpSendReceive
 VAR
 	{attribute 'TcInitSymbol'}
     oid					: OTCID;  // Object ID to Ethernet adapter
-    ipUdp				: ITcIoUdpProtocol;
+    ipUdp				: ITcIoUdpProtocol;	// Interface pointer to UDP
 	packagesReceived	: UDINT;
 	hrInit				: HRESULT;
 	hrSend				: HRESULT;
@@ -18,7 +18,7 @@ VAR
 	rxPort				: UINT;  // Port of the last received message
 	
 	_error				: BOOL;
-	_errorString		: STRING;
+	_errorString		: STRING(TcTcpUdpRT_Param.ErrorStringSize);
 	_buffer				: RingBuffer;
 END_VAR
 VAR_STAT
@@ -94,7 +94,7 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="GetError" Id="{febe20ae-0f43-0611-2f90-3e46f19c2389}">
-      <Declaration><![CDATA[PROPERTY GetError : STRING
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)
 ]]></Declaration>
       <Get Name="Get" Id="{32ff41a9-2332-0890-183e-c20ae6685a67}">
         <Declaration><![CDATA[VAR

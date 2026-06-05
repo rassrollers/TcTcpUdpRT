@@ -16,7 +16,7 @@ METHOD CloseConnection : BOOL  // Return TRUE if succesful
       </Get>
     </Property>
     <Property Name="GetError" Id="{29ccd301-14d7-0a59-3fe3-65410c4acbd2}">
-      <Declaration><![CDATA[PROPERTY GetError : STRING]]></Declaration>
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)]]></Declaration>
       <Get Name="Get" Id="{19fe94f8-002c-0119-0da5-deeac07560c5}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>
