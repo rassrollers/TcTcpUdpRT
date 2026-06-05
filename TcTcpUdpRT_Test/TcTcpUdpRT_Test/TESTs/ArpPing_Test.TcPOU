@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="ArpPing_Test" Id="{4d30fe51-0719-0182-1615-6031885048b2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ArpPing_Test EXTENDS FB_TestSuite
+VAR
+	arpPingTestTimeout		: TON := (PT:= T#2M);
+	
+	arpPing			: TcArpPing;
+	pingIpAddress	: STRING(15) := '192.168.1.101';
+	methodTimeout	: TON;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[arpPing.Run();
+PingAnIpAddress();
+
+// WIP: Does not return the expected MAC address. Have to talk to Beckhoff first.
+//ArpAnIpAddress();
+]]></ST>
+    </Implementation>
+    <Method Name="ArpAnIpAddress" Id="{171657f0-b116-09ec-36c5-978ee2dd4cd8}">
+      <Declaration><![CDATA[METHOD ArpAnIpAddress
+VAR_INST
+	delay: TIME := T#15S;
+	replyIp: STRING(15);
+	replyTime: LTIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ArpAnIpAddress') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF arpPing.Arp(IpAddress:= pingIpAddress, ReplyIpAddress=> replyIp, ReplyTime=> replyTime) THEN
+		AssertEquals_STRING(Expected:= pingIpAddress, Actual:= replyIp, Message:='The ARP an IP address does not match the replied IP address');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF arpPing.Error THEN
+		AssertFalse(Condition:= arpPing.Error, Message:= arpPing.GetError);
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'ARP an IP address timed out while testing');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PingAnIpAddress" Id="{42813b81-c560-0aaa-2849-21fd51528694}">
+      <Declaration><![CDATA[METHOD PingAnIpAddress
+VAR_INST
+	delay: TIME := T#15S;
+	replyIp: STRING(15);
+	replyTime: LTIME;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('PingAnIpAddress') THEN
+	methodTimeout(IN:= TRUE, PT:= delay);
+	IF arpPing.Ping(IpAddress:= pingIpAddress, ReplyIpAddress=> replyIp, ReplyTime=> replyTime) THEN
+		AssertEquals_STRING(Expected:= pingIpAddress, Actual:= replyIp, Message:='The pinged IP address does not match the replied IP address');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF arpPing.Error THEN
+		AssertFalse(Condition:= arpPing.Error, Message:= arpPing.GetError);
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	ELSIF methodTimeout.Q THEN
+		AssertTrue(Condition:= FALSE, Message:= 'Ping an IP address timed out while testing');
+		methodTimeout(IN:= FALSE);
+		TEST_FINISHED();
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

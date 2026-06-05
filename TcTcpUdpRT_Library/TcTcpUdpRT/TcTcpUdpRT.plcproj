@@ -19,7 +19,7 @@
     <Company>TcInterfaces</Company>
     <Released>true</Released>
     <Title>TcTcpUdpRT</Title>
-    <ProjectVersion>1.1.0.0</ProjectVersion>
+    <ProjectVersion>1.2.0.0</ProjectVersion>
     <LibraryCategories>
       <LibraryCategory>
         <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
@@ -79,6 +79,9 @@
     <Compile Include="GVLs\TcTcpUdpRT_Param.TcGVL">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ITFs\IArpPing.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="ITFs\ITcpClient.TcIO">
       <SubType>Code</SubType>
     </Compile>
@@ -91,7 +94,13 @@
     <Compile Include="POUs\Helper\IpAddressToLongInt.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\Helper\LongIntToIpAddress.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\Helper\RingBuffer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\TcArpPing.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\TcTcpClient.TcPOU">

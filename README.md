@@ -67,11 +67,13 @@ You can have multiple TCP/UDP RT modules on one Ethernet adapter, but only one o
 
 # PLC code
 
-There are 3 FB's with matching interfaces:
+There are 4 FB's with matching interfaces:
 
 * TcTcpServer and ITcpServer
 * TcTcpClient and ITcpClient
 * TcUdpSendReceive and IUdpSendReceive
+* TcArpPing and IArpPing
+  * **There is an issue with the ARP request, it does not return the MAC address is expected during testing. I will have to investigate that with Beckhoff**
 
 **They each have a `Run` method that needs to be called cyclic to maintain the communication between the PLC code and IO!**
 

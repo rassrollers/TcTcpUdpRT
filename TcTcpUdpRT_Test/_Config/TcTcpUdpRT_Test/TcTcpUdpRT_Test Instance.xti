@@ -36,6 +36,13 @@
 				<AreaNo>#x00000003</AreaNo>
 				<Data>10000101</Data>
 			</InitSymbol>
+			<InitSymbol>
+				<Name>PRG_TEST.fb_ArpPing.arpPing.oid</Name>
+				<Type GUID="{18071995-0000-0000-0000-00000000000F}">OTCID</Type>
+				<Comment><![CDATA[ Object ID to Ethernet adapter]]></Comment>
+				<AreaNo>#x00000003</AreaNo>
+				<Data>10000101</Data>
+			</InitSymbol>
 		</InitSymbols>
 		<TaskPouOids>
 			<TaskPouOid Prio="6" OTCID="#x08502001"/>
