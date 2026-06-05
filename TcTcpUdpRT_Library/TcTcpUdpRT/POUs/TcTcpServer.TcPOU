@@ -8,7 +8,7 @@ FUNCTION_BLOCK TcTcpServer IMPLEMENTS ITcIoTcpProtocolRecv, ITcpServer
 VAR
 	{attribute 'TcInitSymbol'}
     oid					: OTCID;  // Object ID to Ethernet adapter
-    ipTcp				: ITcIoTcpProtocol;
+    ipTcp				: ITcIoTcpProtocol;	// Interface pointer to TCP
 	serverId			: UDINT;  // Server socket ID
 	clientId			: UDINT;  // Client socket ID
 	hrInit				: HRESULT;
@@ -95,7 +95,7 @@ END_VAR
 		IF FAILED(hrInit) THEN
           	FW_SafeRelease(ADR(ipTcp));
 			_error := TRUE;
-			_errorString := 'UdpSendReceive: Failed to get object instance';
+			_errorString := 'TcpServer: Failed to get object instance';
 		END_IF
 	 ELSIF oid = 0 THEN
 		_error := TRUE;
@@ -121,7 +121,7 @@ END_IF
       </Implementation>
     </Method>
     <Property Name="GetError" Id="{0ea6c4bd-870c-02e3-054e-9d493c602f95}">
-      <Declaration><![CDATA[PROPERTY GetError : STRING
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)
 ]]></Declaration>
       <Get Name="Get" Id="{22b02de7-dee6-04bd-3713-a5c12a1b42d9}">
         <Declaration><![CDATA[]]></Declaration>

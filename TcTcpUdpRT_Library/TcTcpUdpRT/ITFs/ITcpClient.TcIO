@@ -25,7 +25,7 @@ METHOD Disconnect : BOOL  // Return TRUE if succesful
       </Get>
     </Property>
     <Property Name="GetError" Id="{c1881523-ba86-0b9f-0ffa-692e22f085bc}">
-      <Declaration><![CDATA[PROPERTY GetError : STRING]]></Declaration>
+      <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)]]></Declaration>
       <Get Name="Get" Id="{320ad478-76dc-071a-2a9b-a06093be7df4}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>
