@@ -6,21 +6,28 @@ Build in TwinCAT 4026.20 and tested with a C6015 with TC/BSD 14.2.3.5.
 
 - [TcTcpUdpRT](#tctcpudprt)
   - [Introduction](#introduction)
+  - [Requirements](#requirements)
 - [Setup IO](#setup-io)
   - [Multitask access](#multitask-access)
   - [Module parameters](#module-parameters)
   - [Module diagnostics](#module-diagnostics)
 - [PLC code](#plc-code)
   - [Assign symbol to module](#assign-symbol-to-module)
+  - [Limitations](#limitations)
 - [Faults](#faults)
 
 ## Introduction
 
-This library can be used for the TF6311 when you want real-time performance of your TCP/UDP. I made this library because the TF6310 could not keep with the performance when running 1ms task cycles and the UDP performance was bad.
+This library supports the TF6311 for real-time TCP/UDP communication. It was created because the TF6310 could not maintain performance in 1 ms task cycles, and its UDP performance was poor.
 
-The TF6311 lets you have direct access to the hardware, but is hard to implement and there was some error in Beckhoff documentation and the example code was outdated. The PLC code have a interface pointer to the hardware where the Ethernet RT module can interrupt the code when it receives a new message and the `ReceiveData` method can handle the message. There is no buffer from the hardware so you have to handle data in the interrupt. I have implemented a ring buffer for MEMCPY the data to a 32kB buffer where you can call the `Receive` method to get data from the ring buffer. Ring buffer size is adjustable from parameter list `TcTcpUdpRT_Param`.
+The TF6311 provides direct access to the hardware, but implementation is complex and some Beckhoff documentation/examples were outdated. Because the TF6311 traffic is handled directly by the hardware, the operating system does not see the packets and the OS firewall does not affect those connections. The PLC code uses an interface pointer to the hardware, allowing the Ethernet RT module to interrupt the PLC when a new message arrives. The `ReceiveData` method handles incoming message data. Because the hardware provides no receive buffer, data must be copied in the interrupt path. This library implements a ring buffer that copies incoming frames into a 32 KB buffer; the `Receive` method reads data from that ring buffer. The ring buffer size is adjustable via the `TcTcpUdpRT_Param` parameter list.
 
-The `ReceiveData` method can't push back on the TCP stack if the ring buffer is full and get the sender to retransmit the data, so the data will be lost breaking the concept of TCP. Beckhoff have agreed to add that feature. You will get an error from the FB if the buffer is full or the received message can't fit in the ring buffer.
+If the ring buffer is full, `ReceiveData` cannot push back on the TCP stack to force a retransmission, so the data is lost and TCP semantics are broken. Beckhoff has agreed to add support for this feature. The FB reports an error if the buffer is full or if a received message cannot fit into the ring buffer.
+
+## Requirements
+
+- TwinCAT 4026.12 or newer.
+- TF6311 Ethernet RT license.
 
 # Setup IO
 
@@ -34,20 +41,22 @@ The `ReceiveData` method can't push back on the TCP stack if the ring buffer is 
 
     ![Set Ethernet adapter](img/SetEthernetAdapter.png)
 
-   - If you are the same code to multiple IPC, you can check the `Virtual Device Names` so it will ignore the MAC address of the adapter and only use the name to find the adapter.
+   - If you use the same code on multiple IPCs, you can check `Virtual Device Names` so the adapter selection ignores the MAC address and matches only by device name.
    - [Beckhoff documentation on Ethernet adapter](https://infosys.beckhoff.com/english.php?content=../content/1033/tc3_io_intro/1258020619.html)
 
-3. Now you need to add the TCP/UDP RT module to the Ethernet adapter. Right click in the Ethernet adater adn click `Add Object(s)`.
+3. Now you need to add the TCP/UDP RT module to the Ethernet adapter. Right click on the Ethernet adapter and click `Add Object(s)`.
 
     ![Insert TCP/UDP RT module](img/InsertEthernetModule.png)
 
-4. Set the interface pointer for the TCP/UDP module to the point to the Ethernet adapter in the `Interface Pointer` tab.
+4. Set the interface pointer for the TCP/UDP module to point to the Ethernet adapter in the `Interface Pointer` tab.
 
     ![Set interface pointer for TCP/UDP module](img/SetInterfacePointerToAdapter.png)
 
 5. Assign the TCP/UDP RT module to a task in the `Context` tab.
 
     ![Assign TCP/UDP RT module to a task](img/SetTaskForModule.png)
+
+> Note: The TCP/UDP RT module should be on the same task as the PLC code that calls its `Run` method.
 
 ## Multitask access
 
@@ -89,7 +98,15 @@ The instance of the TcTcpServer, TcTcpClient and TcUdpSendReceive needs to be as
 
     ![Assign symbol to module](img/SetOidToInterface.png)
 
-    - You can have multiple instance assigned to the same module as long as the are called by the same task.
+    - You can have multiple instances assigned to the same module as long as they are called by the same task.
+
+## Limitations
+
+- The `ReceiveData` method cannot currently push back on the TCP stack if the ring buffer is full, so lost packets may occur.
+- The currently implemented TCP behavior can break TCP semantics when the ring buffer overflows.
+- The TF6311 traffic bypasses the OS network stack, so the OS firewall does not affect TCP/UDP connections handled by this module.
+- There is a known issue with `TcArpPing` where the ARP request does not return the expected MAC address during testing.
+- Module parameters such as buffer size and passive mode are important when using multiple modules on the same adapter.
 
 # Faults
 
