@@ -15,6 +15,9 @@ Build in TwinCAT 4026.20 and tested with a C6015 with TC/BSD 14.2.3.5.
   - [Assign symbol to module](#assign-symbol-to-module)
   - [Limitations](#limitations)
 - [Faults](#faults)
+- [Testing](#testing)
+  - [Prerequisites on the PC](#prerequisites-on-the-pc)
+  - [Running the tests](#running-the-tests)
 
 ## Introduction
 
@@ -111,3 +114,61 @@ The instance of the TcTcpServer, TcTcpClient and TcUdpSendReceive needs to be as
 # Faults
 
 [Beckhoff documentation on faults](https://infosys.beckhoff.com/english.php?content=../content/1033/tf6311_tc3_tcpudp/1106587787.html)
+
+# Testing
+
+The `TcTcpUdpRT_Test` project contains TcUnit test suites driven by the Python tests in `tests/`. The PLC runs the
+suites with `RUN_IN_SEQUENCE`: ring buffer, TCP client, TCP server, UDP and ARP/ping. The ring buffer and ARP/ping
+suites run on their own; the ping test must target your PCs IP address, which must answer ICMP echo requests.
+
+## Prerequisites on the PC
+
+- Python 3.13 with the requirements installed in the interpreter VS Code uses. Pytest discovery needs `pyads`
+  importable in that interpreter. Install the requirements from the repository root:
+
+  ```powershell
+  python -m pip install -r requirements.txt
+  ```
+
+- An ADS route to the PLC. The defaults are PLC IP `192.168.1.10`, NetId `192.168.1.10.1.1` and ADS port `851`.
+- The target IP address for the PLC test must be your PCs IP address. The TCP client and UDP suites use this address directly.
+- Inbound Windows Firewall rules for the PC's test listeners. The PLC connects to the PC on TCP 9901 and sends UDP
+  to port 9901. Without these rules, the TCP client test and final UDP message can fail. Run once in an elevated PowerShell:
+
+  ```powershell
+  New-NetFirewallRule -DisplayName "PLC TcpUdp tests TCP 9901" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 9901 -RemoteAddress 192.168.1.10 -Profile Any
+  New-NetFirewallRule -DisplayName "PLC TcpUdp tests UDP 9901" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 9901 -RemoteAddress 192.168.1.10 -Profile Any
+  ```
+
+- If your PC is also the ICMP target, allow inbound ICMP echo requests from the PLC. Windows
+  blocks echo requests on the Public profile by default:
+
+  ```powershell
+  New-NetFirewallRule -DisplayName "PLC TcpUdp tests ICMP echo" -Direction Inbound -Action Allow -Protocol ICMPv4 -IcmpType 8 -RemoteAddress 192.168.1.10 -Profile Any
+  ```
+
+## Running the tests
+
+1. Activate the `TcTcpUdpRT_Test` project and restart the PLC. The suites are single-shot; their start flags are not
+   reset, so each full test pass needs a fresh PLC start.
+2. Run all Python tests from the VS Code Testing pane or from a terminal at the repository root:
+
+   ```powershell
+   python -m pytest tests
+   ```
+
+   The PLC IP, NetId, ADS port and TCP ports can be overridden with `--plc.ip`, `--plc.netid`, `--plc.netport`,
+   `--plc.serverport` and `--plc.clientport` (see `tests/conftest.py`). The PLC test suites also use the fixed PC and
+   ping addresses documented above. Update firewall rules if you change the ports.
+3. Run the Python tests in the order established by pytest collection. Each PLC suite starts only after the previous
+   suite completes, so running an individual test requires the PLC to have reached that suite, or a PLC restart.
+
+Default ports:
+
+| Port      | Listener           | Direction from the PC |
+|-----------|--------------------|-----------------------|
+| TCP 9900  | PLC TCP server     | outbound              |
+| TCP 9901  | PC TCP server      | inbound               |
+| UDP 9901  | PC UDP listener    | inbound               |
+| UDP 9902  | PLC UDP listener   | outbound              |
+| ICMP echo | PC IP address      | outbound              |

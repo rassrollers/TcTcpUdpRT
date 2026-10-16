@@ -1,12 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="RingBuffer" Id="{80aea213-0d34-08b9-10ae-08e00b244947}" SpecialFunc="None">
-    <Declaration><![CDATA[// The buffer uses 1-byte separation rule from the writer to the reader
+    <Declaration><![CDATA[// The buffer uses 1-byte separation rule from the writer to the reader.
+// The storage is allocated once from the TwinCAT router memory with __NEW in Init()
+// and released again with __DELETE in FB_exit. Call Init() during start-up (e.g. from
+// the FB_init of the owning function block) before using the buffer.
 FUNCTION_BLOCK RingBuffer
 VAR
 	_error			: BOOL;
 	_errorString	: STRING(TcTcpUdpRT_Param.ErrorStringSize);
-	_ringBuffer		: ARRAY[0..(TcTcpUdpRT_Param.RingBufferSize-1)] OF BYTE;
+	_pBuffer		: POINTER TO BYTE;  // Dynamically allocated storage (__NEW), 0 when not allocated
+	_size			: UDINT;  // Size of the allocated storage in bytes
 	_readPointer	: UDINT;
 	_writePointer	: UDINT;
 END_VAR
@@ -22,7 +26,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CopyFromBuffer := MEMCPY(destAddr:= Data, srcAddr:= ADR(_ringBuffer[_readPointer]), n:= Length);
+        <ST><![CDATA[CopyFromBuffer := MEMCPY(destAddr:= Data, srcAddr:= ADR(_pBuffer[_readPointer]), n:= Length);
 IF CopyFromBuffer = 0 THEN
 	_error := TRUE;
 	_errorString := CONCAT('MEMCPY invalid parameter, ReadPointer: ', CONCAT(TO_STRING(_readPointer), CONCAT(', Length: ', CONCAT(TO_STRING(Length), CONCAT(', Data: ', TO_STRING(Data))))));
@@ -30,7 +34,7 @@ ELSIF CopyFromBuffer <> Length THEN
 	_error := TRUE;
 	_errorString := CONCAT('MEMCPY size ', CONCAT(TO_STRING(CopyFromBuffer), CONCAT(' from buffer is different from length ', TO_STRING(Length))));
 ELSE
-	_readPointer := (_readPointer + CopyFromBuffer) MOD TcTcpUdpRT_Param.RingBufferSize;
+	_readPointer := (_readPointer + CopyFromBuffer) MOD _size;
 END_IF
 ]]></ST>
       </Implementation>
@@ -43,7 +47,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CopyToBuffer := MEMCPY(destAddr:= ADR(_ringBuffer[_writePointer]), srcAddr:= Data, n:= Length);
+        <ST><![CDATA[CopyToBuffer := MEMCPY(destAddr:= ADR(_pBuffer[_writePointer]), srcAddr:= Data, n:= Length);
 IF CopyToBuffer = 0 THEN
 	_error := TRUE;
 	_errorString := CONCAT('MEMCPY invalid parameter, WritePointer: ', CONCAT(TO_STRING(_writePointer), CONCAT(', Length: ', CONCAT(TO_STRING(Length), CONCAT(', Data: ', TO_STRING(Data))))));
@@ -51,7 +55,7 @@ ELSIF CopyToBuffer <> Length THEN
 	_error := TRUE;
 	_errorString := CONCAT('MEMCPY size ', CONCAT(TO_STRING(CopyToBuffer), CONCAT(' to buffer is different from length ', TO_STRING(Length))));
 ELSE
-	_writePointer := (_writePointer + CopyToBuffer) MOD TcTcpUdpRT_Param.RingBufferSize;
+	_writePointer := (_writePointer + CopyToBuffer) MOD _size;
 END_IF
 ]]></ST>
       </Implementation>
@@ -63,8 +67,14 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[set := MEMSET(destAddr:= ADR(_ringBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
-IF set = TcTcpUdpRT_Param.RingBufferSize THEN
+        <ST><![CDATA[IF _pBuffer = 0 THEN
+	_error := TRUE;
+	_errorString := 'Ring buffer is not allocated, call Init() first';
+	RETURN;
+END_IF
+
+set := MEMSET(destAddr:= _pBuffer, fillByte:= 0, n:= _size);
+IF set = _size THEN
 	_readPointer := 0;
 	_writePointer := 0;
 	EmptyBuffer := TRUE;
@@ -85,6 +95,23 @@ END_IF
         </Implementation>
       </Get>
     </Property>
+    <Method Name="FB_Exit" Id="{7e5854d6-bfcc-0249-301d-0dfd76615777}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode AND _pBuffer <> 0 THEN  // No online change -> shutdown, release the router memory
+	__DELETE(_pBuffer);  // Sets _pBuffer to 0
+	_size := 0;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
     <Property Name="GetError" Id="{ec835a68-a4b3-02af-0a12-dba7371b5b41}">
       <Declaration><![CDATA[PROPERTY GetError : STRING(TcTcpUdpRT_Param.ErrorStringSize)]]></Declaration>
       <Get Name="Get" Id="{afb0f6c2-cb50-02cc-1741-8bceaea93735}">
@@ -95,12 +122,57 @@ END_IF
         </Implementation>
       </Get>
     </Property>
+    <Method Name="Init" Id="{0b601765-cd37-0d6e-1eba-2e5f436aa6d1}">
+      <Declaration><![CDATA[METHOD Init : BOOL
+VAR_INPUT
+	BufferSize	: UDINT;  // Size of the ring buffer in bytes, 0 uses TcpUdp_Param.RingBufferSize
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _pBuffer <> 0 THEN
+	Init := TRUE;  // Already allocated, allocation is only done once
+	RETURN;
+END_IF
+
+IF BufferSize = 0 THEN
+	BufferSize := TcTcpUdpRT_Param.RingBufferSize;
+END_IF
+
+_pBuffer := __NEW(BYTE, BufferSize);
+IF _pBuffer = 0 THEN
+	_size := 0;
+	_error := TRUE;
+	_errorString := CONCAT('Failed to allocate ring buffer of size ', CONCAT(TO_STRING(BufferSize), ' from router memory'));
+	RETURN;
+END_IF
+
+_size := BufferSize;
+_readPointer := 0;
+_writePointer := 0;
+Init := TRUE;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="IsAllocated" Id="{7fa54fd6-b1aa-0988-153d-dae7ac2fc78a}">
+      <Declaration><![CDATA[PROPERTY IsAllocated : BOOL]]></Declaration>
+      <Get Name="Get" Id="{a1763297-7081-0978-3742-6eb8ce9ff154}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IsAllocated := _pBuffer <> 0;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="IsBufferEmpty" Id="{498c0ea8-4fab-053e-39ad-7af76230e8ed}">
       <Declaration><![CDATA[PROPERTY IsBufferEmpty : BOOL]]></Declaration>
       <Get Name="Get" Id="{586b14d4-0d2b-0fe3-1d0c-45914576bc3a}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IsBufferEmpty := _readPointer = _writePointer;
+          <ST><![CDATA[IF _size = 0 THEN
+	IsBufferEmpty := TRUE;
+	RETURN;
+END_IF
+IsBufferEmpty := (TO_LINT((_readPointer - _writePointer + _size) MOD _size) - 1) = -1;
 ]]></ST>
         </Implementation>
       </Get>
@@ -110,7 +182,11 @@ END_IF
       <Get Name="Get" Id="{85385786-b48e-07e7-1288-5b9d6586232e}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IsBufferFull := (_writePointer + 1) MOD TcTcpUdpRT_Param.RingBufferSize = _readPointer;
+          <ST><![CDATA[IF _size = 0 THEN
+	IsBufferFull := FALSE;
+	RETURN;
+END_IF
+IsBufferFull := (TO_LINT((_readPointer - _writePointer + _size) MOD _size) - 1) = 0;
 ]]></ST>
         </Implementation>
       </Get>
@@ -129,7 +205,11 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF Data = 0 THEN
+        <ST><![CDATA[IF _pBuffer = 0 THEN
+	_error := TRUE;
+	_errorString := 'Ring buffer is not allocated, call Init() first';
+	RETURN;
+ELSIF Data = 0 THEN
 	Read := 0;
 	_error := TRUE;
 	_errorString := 'Was not able to read from buffer because data pointer was empty';
@@ -147,18 +227,18 @@ IF _readPointer = _writePointer THEN
     RETURN;
 END_IF
 
-available := (_writePointer - _readPointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize;
+available := (_writePointer - _readPointer + _size) MOD _size;
 IF Length > available THEN
 	// Only read available data
 	Length := available;
 END_IF
 
-IF _readPointer + Length <= TcTcpUdpRT_Param.RingBufferSize THEN
+IF _readPointer + Length <= _size THEN
 	// No wrap around
 	Read := CopyFromBuffer(Data:= Data, Length:= Length);
 ELSE
 	// Wrap around
-	first := TcTcpUdpRT_Param.RingBufferSize - _readPointer;
+	first := _size - _readPointer;
 	copied := CopyFromBuffer(Data:= Data, Length:= first);
 	Read := copied;
 	
@@ -182,6 +262,16 @@ _errorString := '';
 ]]></ST>
       </Implementation>
     </Method>
+    <Property Name="Size" Id="{714e2a7e-e26f-0fdc-01d8-fb7cc8023c64}">
+      <Declaration><![CDATA[PROPERTY Size : UDINT]]></Declaration>
+      <Get Name="Get" Id="{821141e8-0409-0d10-2bce-2d6bfc2f094c}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Size := _size;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Method Name="Write" Id="{419acdf9-7d69-0db9-0ffa-9999d3b7b3cc}">
       <Declaration><![CDATA[METHOD Write : UDINT
 VAR_INPUT
@@ -196,7 +286,11 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF Data = 0 THEN
+        <ST><![CDATA[IF _pBuffer = 0 THEN
+	_error := TRUE;
+	_errorString := 'Ring buffer is not allocated, call Init() first';
+	RETURN;
+ELSIF Data = 0 THEN
 	Write := 0;
 	_error := TRUE;
 	_errorString := 'Was not able to write to buffer because data pointer was empty';
@@ -209,9 +303,9 @@ ELSIF Length = 0 THEN
 END_IF
 
 IF IsBufferEmpty THEN
-	available := TcTcpUdpRT_Param.RingBufferSize - 1;
+	available := _size - 1;
 ELSE
-	available := TO_LINT((_readPointer - _writePointer + TcTcpUdpRT_Param.RingBufferSize) MOD TcTcpUdpRT_Param.RingBufferSize) - 1;
+	available := TO_LINT((_readPointer - _writePointer + _size) MOD _size) - 1;
 END_IF
 
 IF Length > available THEN 
@@ -222,12 +316,12 @@ IF Length > available THEN
 	RETURN;
 END_IF
 
-IF (_writePointer + Length) <= TcTcpUdpRT_Param.RingBufferSize THEN
+IF (_writePointer + Length) <= _size THEN
 	// No wrap around
 	Write := CopyToBuffer(Data:= Data, Length:= Length);
 ELSE
 	// Wrap around
-	first := TcTcpUdpRT_Param.RingBufferSize - _writePointer;
+	first := _size - _writePointer;
 	copied := CopyToBuffer(Data:= Data, Length:= first);
 	Write := copied;
 	

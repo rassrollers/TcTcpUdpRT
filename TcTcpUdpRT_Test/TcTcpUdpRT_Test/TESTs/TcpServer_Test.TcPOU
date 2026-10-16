@@ -7,7 +7,7 @@ VAR
 	tcpServerTestDone		: BOOL;
 	tcpServerTestTimeout	: TON := (PT:= T#2M);
 	
-	tcpServer	: TcTcpServer;
+	tcpServer	: TcTcpServer(BufferSize:= TcTcpUdpRT_Param.RingBufferSize);
 	listenPort	: UINT := 9900;
 	txData		: STRING(25) := 'Hello from PLC TCP server';
 	txCounter	: UDINT;

@@ -17,9 +17,9 @@
     <Implicit_Jitter_Distribution>{ae379a49-beca-44b2-bb03-ba9ce86a0ccc}</Implicit_Jitter_Distribution>
     <LibraryReferences>{6be6b7bd-20f7-499a-bb13-d2aed395b9c1}</LibraryReferences>
     <Company>TcInterfaces</Company>
-    <Released>true</Released>
+    <Released>false</Released>
     <Title>TcTcpUdpRT</Title>
-    <ProjectVersion>1.2.0.0</ProjectVersion>
+    <ProjectVersion>1.3.0.0</ProjectVersion>
     <LibraryCategories>
       <LibraryCategory>
         <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>

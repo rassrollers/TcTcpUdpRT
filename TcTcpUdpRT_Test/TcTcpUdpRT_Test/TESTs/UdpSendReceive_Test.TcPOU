@@ -8,7 +8,7 @@ VAR
 	waitListenTestDone	: BOOL;
 	tcpServerTestTimeout	: TON := (PT:= T#2M);
 	
-	udpClient		: TcUdpSendReceive;
+	udpClient		: TcUdpSendReceive(BufferSize:= TcTcpUdpRT_Param.RingBufferSize);
 	clientAddr		: STRING(15) := '192.168.1.119';
 	listenPort		: UINT := 9902;
 	sendPort		: UINT := 9901;
