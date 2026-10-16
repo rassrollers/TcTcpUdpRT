@@ -4,6 +4,7 @@
     <Declaration><![CDATA[FUNCTION_BLOCK RingBuffer_Test EXTENDS FB_TestSuite
 VAR
 	RingBuf: RingBuffer;
+	RingBufUnallocated: RingBuffer;  // Init() is never called on this instance, used for the unallocated corner cases
 	ReadBuffer: ARRAY[0..(TcTcpUdpRT_Param.RingBufferSize-1)] OF BYTE;
 	WriteBuffer: ARRAY[0..(WriteBufferSize-1)] OF BYTE;
 	emptyPointer: POINTER TO BYTE;
@@ -14,7 +15,11 @@ VAR CONSTANT
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[//WriteWithNoDataPointer();
+      <ST><![CDATA[IF NOT RingBuf.IsAllocated THEN
+	RingBuf.Init(BufferSize:= TcTcpUdpRT_Param.RingBufferSize);  // Allocate once before the tests run
+END_IF
+
+//WriteWithNoDataPointer();
 //WriteWithNoDataLength();
 //ReadWithNoDataPointer();
 //ReadWithNoDataLength();
@@ -37,8 +42,35 @@ WriteOverflowBuffer();
 WriteFullSizeOfBuffer();
 ExpectBufferToBeFull();
 Write1ByteOverWrapAroundAndRead1ByteOver();
+
+// Corner cases on a buffer that was never allocated
+UnallocatedBufferState();
+ReadFromUnallocatedBuffer();
+WriteToUnallocatedBuffer();
+EmptyUnallocatedBuffer();
+InitUnallocatedBufferWithDefaultSize();
 ]]></ST>
     </Implementation>
+    <Method Name="EmptyUnallocatedBuffer" Id="{92e284b8-9f5d-07ad-0254-e7f77fe4a7b7}">
+      <Declaration><![CDATA[METHOD EmptyUnallocatedBuffer
+VAR
+	Emptied: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('EmptyUnallocatedBuffer') THEN
+	Emptied := RingBufUnallocated.EmptyBuffer();
+	AssertFalse(Condition:= Emptied, Message:= 'Expected EmptyBuffer to return FALSE on an unallocated buffer');
+	AssertTrue(Condition:= RingBufUnallocated.Error, Message:= 'Expected an error when emptying an unallocated buffer');
+	AssertEquals_STRING(Expected:= 'Ring buffer is not allocated, call Init() first', Actual:= RingBufUnallocated.GetError, Message:= 'Unexpected error string when emptying an unallocated buffer');
+
+	RingBufUnallocated.ResetError();
+	AssertFalse(Condition:= RingBufUnallocated.Error, Message:= 'Ring buffer did not reset error after emptying unallocated buffer');
+	TEST_FINISHED();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="ExpectBufferNotToEmpty" Id="{9831089e-c19c-06b8-1314-546a4c9ab050}">
       <Declaration><![CDATA[METHOD ExpectBufferNotToEmpty
 ]]></Declaration>
@@ -78,6 +110,46 @@ END_IF
       <Implementation>
         <ST><![CDATA[IF TEST_ORDERED('ExpectBufferToNotBeFull') THEN
 	AssertFalse(Condition:= RingBuf.IsBufferFull, Message:= 'Expected IsBufferFull returned TRUE when the buffer was not full');
+	TEST_FINISHED();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="InitUnallocatedBufferWithDefaultSize" Id="{5079de49-03af-04f9-07a9-0d27fc0c21cc}">
+      <Declaration><![CDATA[METHOD InitUnallocatedBufferWithDefaultSize
+VAR
+	DataChar: BYTE := 7;
+	DataSize: UDINT := 10;
+	Initialized: BOOL;
+	Written: UDINT;
+	Read: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('InitUnallocatedBufferWithDefaultSize') THEN
+	// Init with size 0 falls back to the default size
+	Initialized := RingBufUnallocated.Init(BufferSize:= 0);
+	AssertTrue(Condition:= Initialized, Message:= 'Expected Init() with size 0 to allocate the default size');
+	AssertFalse(Condition:= RingBufUnallocated.Error, Message:= RingBufUnallocated.GetError);
+	AssertTrue(Condition:= RingBufUnallocated.IsAllocated, Message:= 'Expected IsAllocated to be TRUE after Init()');
+	AssertEquals_UDINT(Expected:= TcTcpUdpRT_Param.RingBufferSize, Actual:= RingBufUnallocated.Size, Message:= 'Expected Size to be the default size after Init() with size 0');
+	AssertTrue(Condition:= RingBufUnallocated.IsBufferEmpty, Message:= 'Expected IsBufferEmpty to be TRUE right after Init()');
+	AssertFalse(Condition:= RingBufUnallocated.IsBufferFull, Message:= 'Expected IsBufferFull to be FALSE right after Init()');
+
+	// A second Init must not reallocate or change the size
+	Initialized := RingBufUnallocated.Init(BufferSize:= 123);
+	AssertTrue(Condition:= Initialized, Message:= 'Expected a second Init() to return TRUE');
+	AssertEquals_UDINT(Expected:= TcTcpUdpRT_Param.RingBufferSize, Actual:= RingBufUnallocated.Size, Message:= 'A second Init() changed the size of an already allocated buffer');
+
+	// The buffer is usable after Init()
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+	Written := RingBufUnallocated.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	Read := RingBufUnallocated.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= DataSize, Actual:= Written, Message:= 'Written data to the newly allocated buffer does not match');
+	AssertEquals_UDINT(Expected:= DataSize, Actual:= Read, Message:= 'Read data from the newly allocated buffer does not match');
+	AssertEquals_BYTE(Expected:= DataChar, Actual:= ReadBuffer[DataSize-1], Message:= 'The last element read from the newly allocated buffer was not correct');
+	AssertFalse(Condition:= RingBufUnallocated.Error, Message:= RingBufUnallocated.GetError);
 	TEST_FINISHED();
 END_IF
 ]]></ST>
@@ -163,6 +235,30 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="ReadFromUnallocatedBuffer" Id="{9678a0d9-b3fd-08cb-1e09-63127dbaf531}">
+      <Declaration><![CDATA[METHOD ReadFromUnallocatedBuffer
+VAR
+	DataSize: UDINT := 10;
+	Read: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('ReadFromUnallocatedBuffer') THEN
+	MEMSET(destAddr:= ADR(ReadBuffer), fillByte:= 0, n:= TcTcpUdpRT_Param.RingBufferSize);
+
+	Read := RingBufUnallocated.Read(Data:= ADR(ReadBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= 0, Actual:= Read, Message:= CONCAT('Read from unallocated ring buffer returned a length of ', TO_STRING(Read)));
+	AssertTrue(Condition:= RingBufUnallocated.Error, Message:= 'Expected an error when reading from an unallocated buffer');
+	AssertEquals_STRING(Expected:= 'Ring buffer is not allocated, call Init() first', Actual:= RingBufUnallocated.GetError, Message:= 'Unexpected error string when reading from an unallocated buffer');
+	AssertEquals_BYTE(Expected:= 0, Actual:= ReadBuffer[0], Message:= 'Read from unallocated buffer modified the destination');
+
+	RingBufUnallocated.ResetError();
+	AssertFalse(Condition:= RingBufUnallocated.Error, Message:= 'Ring buffer did not reset error after read from unallocated buffer');
+	TEST_FINISHED();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="ReadWithNoDataLength" Id="{35ab7352-a1bb-0626-208d-e29731a9ebc9}">
       <Declaration><![CDATA[METHOD ReadWithNoDataLength
 ]]></Declaration>
@@ -187,6 +283,21 @@ END_IF]]></ST>
 	RingBuf.ResetError();
 	TEST_FINISHED();
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="UnallocatedBufferState" Id="{70a87e42-4bfd-04a4-189d-2ffb644aaa4b}">
+      <Declaration><![CDATA[METHOD UnallocatedBufferState
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('UnallocatedBufferState') THEN
+	AssertFalse(Condition:= RingBufUnallocated.IsAllocated, Message:= 'Expected IsAllocated to be FALSE before Init()');
+	AssertEquals_UDINT(Expected:= 0, Actual:= RingBufUnallocated.Size, Message:= 'Expected Size to be 0 before Init()');
+	AssertTrue(Condition:= RingBufUnallocated.IsBufferEmpty, Message:= 'Expected IsBufferEmpty to be TRUE for an unallocated buffer');
+	AssertFalse(Condition:= RingBufUnallocated.IsBufferFull, Message:= 'Expected IsBufferFull to be FALSE for an unallocated buffer');
+	AssertFalse(Condition:= RingBufUnallocated.Error, Message:= 'Expected no error on an unallocated buffer that has not been used');
+	TEST_FINISHED();
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="Write1ByteOverWrapAroundAndRead1ByteOver" Id="{123120c6-1772-0bb6-3a3d-e1a2d48a9025}">
@@ -346,6 +457,31 @@ END_VAR
 	AssertFalse(Condition:= RingBuf.Error, Message:= 'Ring buffer did not reset error after overflow');
 	TEST_FINISHED();
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="WriteToUnallocatedBuffer" Id="{a634333f-d9f3-0004-1d1a-ebb3b6860eef}">
+      <Declaration><![CDATA[METHOD WriteToUnallocatedBuffer
+VAR
+	DataChar: BYTE := 42;
+	DataSize: UDINT := 10;
+	Written: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TEST_ORDERED('WriteToUnallocatedBuffer') THEN
+	MEMSET(destAddr:= ADR(WriteBuffer), fillByte:= DataChar, n:= DataSize);
+
+	Written := RingBufUnallocated.Write(Data:= ADR(WriteBuffer), Length:= DataSize);
+	AssertEquals_UDINT(Expected:= 0, Actual:= Written, Message:= CONCAT('Write to unallocated ring buffer returned a length of ', TO_STRING(Written)));
+	AssertTrue(Condition:= RingBufUnallocated.Error, Message:= 'Expected an error when writing to an unallocated buffer');
+	AssertEquals_STRING(Expected:= 'Ring buffer is not allocated, call Init() first', Actual:= RingBufUnallocated.GetError, Message:= 'Unexpected error string when writing to an unallocated buffer');
+	AssertTrue(Condition:= RingBufUnallocated.IsBufferEmpty, Message:= 'Expected IsBufferEmpty to stay TRUE after a rejected write');
+
+	RingBufUnallocated.ResetError();
+	AssertFalse(Condition:= RingBufUnallocated.Error, Message:= 'Ring buffer did not reset error after write to unallocated buffer');
+	TEST_FINISHED();
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="WriteWithNoDataLength" Id="{811e8989-8a4c-03a5-1a54-b6ef52b52cea}">

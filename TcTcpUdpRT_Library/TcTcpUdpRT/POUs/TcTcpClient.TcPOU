@@ -92,15 +92,20 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="FB_init" Id="{659ac52c-5325-0625-0338-dec8530345c5}">
-      <Declaration><![CDATA[{attribute 'hide'}
-METHOD FB_init : BOOL
+      <Declaration><![CDATA[METHOD FB_init : BOOL
 VAR_INPUT
 	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
 	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+	BufferSize : UDINT := TcTcpUdpRT_Param.RingBufferSize;  // Receive ring buffer size in bytes, allocated once from router memory
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT bInCopyCode THEN  // No online changes
+        <ST><![CDATA[IF NOT bInCopyCode THEN  // No online change
+	IF NOT _buffer.Init(BufferSize:= BufferSize) THEN
+		_error := TRUE;
+		_errorString := CONCAT('TcpClient: ', _buffer.GetError);
+	END_IF
+	
 	IF ipTcp = 0 AND oid <> 0 THEN
 		hrInit := FW_ObjMgr_GetObjectInstance(oid:= oid, iid:= TC_GLOBAL_IID_LIST.IID_ITcIoTcpProtocol, pipUnk:= ADR(ipTcp));  // Get the interface pointer from the object instance'
 		IF FAILED(hrInit) THEN

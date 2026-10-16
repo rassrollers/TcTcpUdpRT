@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+<TcPlcObject Version="1.1.0.1">
   <POU Name="AppExample" Id="{03b40a06-ca0f-087c-3bcb-a70262e06c77}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM AppExample
 VAR
-	TcServer: TcTcpServer;  // Initialize the OTCID for the TcServer in the project instance
+	TcServer: TcTcpServer(BufferSize:= 1024);  // Receive buffer size per instance. Initialize the OTCID for the TcServer in the project instance
 	Communication: CommunicationExample;
 END_VAR
 ]]></Declaration>

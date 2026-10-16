@@ -7,7 +7,7 @@ VAR
 	tcpClientTestDone		: BOOL;
 	tcpServerTestTimeout	: TON := (PT:= T#2M);
 	
-	tcpClient	: TcTcpClient;
+	tcpClient	: TcTcpClient(BufferSize:= TcTcpUdpRT_Param.RingBufferSize);
 	serverAddr	: STRING(15) := '192.168.1.119';
 	serverPort	: UINT := 9901;
 	txData		: STRING(25) := 'Hello from PLC TCP client';
