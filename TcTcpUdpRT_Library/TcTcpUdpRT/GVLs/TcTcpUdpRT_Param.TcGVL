@@ -6,6 +6,7 @@ VAR_GLOBAL CONSTANT
 	RingBufferSize		: UDINT := 32768;  // Default ring buffer size for the receivers (32kB). Override per instance with the BufferSize FB_init parameter.
 	UdpSourcePortStart	: UINT := 51000;  // Starting range for source port of the UDP instances (51000).
 	ErrorStringSize		: UINT := 120;  // Size of error string (120).
+	PingRetransmitInterval	: TIME := T#1S;  // Ping resends the echo request at this interval until a reply arrives or the timeout expires (1 s).
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

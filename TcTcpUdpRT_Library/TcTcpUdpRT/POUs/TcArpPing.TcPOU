@@ -14,6 +14,7 @@ VAR
 
 	_timeout			: TON;
 	_delay				: TIME := T#5S;
+	_retransmit			: TON;  // Resends the ping echo request while no reply has arrived
 	_arpRepliedIpAddress	: STRING(15);
 	_arpRepliedMac		: Global.ETHERNET_ADDRESS;
 	_requestingArp		: BOOL;
@@ -208,16 +209,32 @@ END_VAR
 	END_IF
 ELSE
 	_timeout(IN:= TRUE, PT:= _delay);
+	_retransmit(IN:= TRUE, PT:= TcTcpUdpRT_Param.PingRetransmitInterval);
 	IF _pingReplied THEN
 		_stopTime := F_GetSystemTime();
 		_timeout(IN:= FALSE);
+		_retransmit(IN:= FALSE);
 		_requestingPing := FALSE;
 		ReplyIpAddress := _pingRepliedIpAddress;
-		ReplyTime := ULINT_TO_LTIME(_stopTime - _startTime);;
+		ReplyTime := ULINT_TO_LTIME(_stopTime - _startTime);
 		Ping := IpAddress = _pingRepliedIpAddress;
 	ELSIF _timeout.Q THEN
+		_retransmit(IN:= FALSE);
+		_requestingPing := FALSE;
 		_error := TRUE;
 		_errorString := CONCAT('ARP/Ping: Timeout while pinging IP: ', IpAddress);
+	ELSIF _retransmit.Q THEN
+		// No reply yet: resend the echo request and restart the interval. The overall timeout keeps running.
+		_retransmit(IN:= FALSE);
+		hr := ipArpPing.PingRequest(ipAddr:= IpAddressToLongInt(IpAddress:= IpAddress), 0, 0, 0);
+		IF FAILED(hr) THEN
+			_timeout(IN:= FALSE);
+			_requestingPing := FALSE;
+			_error := TRUE;
+			_errorString := CONCAT('ARP/Ping: Failed to ping IP: ', CONCAT(IpAddress, CONCAT(', HRESULT: ', DWORD_TO_HEXSTR(in:= DINT_TO_DWORD(hr), iPrecision:= 8, bLoCase:= FALSE))));
+		ELSE
+			_startTime := F_GetSystemTime();
+		END_IF
 	END_IF
 END_IF
 ]]></ST>
@@ -254,6 +271,7 @@ _errorString := '';
 _requestingPing:= FALSE;
 _pingReplied := FALSE;
 _timeout(IN:= FALSE);
+_retransmit(IN:= FALSE);
 ]]></ST>
       </Implementation>
     </Method>
