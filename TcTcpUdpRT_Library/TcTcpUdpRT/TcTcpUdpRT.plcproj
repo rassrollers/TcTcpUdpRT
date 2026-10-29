@@ -19,7 +19,7 @@
     <Company>TcInterfaces</Company>
     <Released>false</Released>
     <Title>TcTcpUdpRT</Title>
-    <ProjectVersion>1.3.0.0</ProjectVersion>
+    <ProjectVersion>1.3.1.0</ProjectVersion>
     <LibraryCategories>
       <LibraryCategory>
         <Id>{74d73ecf-c7bc-42f1-b7e1-79b8ad218c28}</Id>
