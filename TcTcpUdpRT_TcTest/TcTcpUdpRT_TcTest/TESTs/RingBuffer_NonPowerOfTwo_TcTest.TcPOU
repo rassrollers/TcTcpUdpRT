@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_NonPowerOfTwo_TcTest" Id="{c1fe7c7c-d518-41d1-8f90-de2418d5a6a3}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Preserve FIFO across wraparound with non-power-of-two size' }
+{ attribute 'Category':='RingBuffer/Wraparound' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_NonPowerOfTwo_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	FirstData: ARRAY[0..(FirstSize-1)] OF BYTE;
+	WrappedData: ARRAY[0..(WrappedSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(ExpectedSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 17;
+	FirstSize: UDINT := 12;
+	FirstReadSize: UDINT := 10;
+	WrappedSize: UDINT := 8;
+	ExpectedSize: UDINT := FirstSize - FirstReadSize + WrappedSize;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+Assert(bCondition:= RingBuf.Size = BufferSize, sMessage:= 'Ring buffer size changed');
+MEMSET(ADR(FirstData), 14, SIZEOF(FirstData));
+MEMSET(ADR(WrappedData), 28, SIZEOF(WrappedData));
+Count := RingBuf.Write(Data:= ADR(FirstData), Length:= FirstSize);
+Assert(bCondition:= Count = FirstSize, sMessage:= 'Initial write failed');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= FirstReadSize);
+Assert(bCondition:= Count = FirstReadSize, sMessage:= 'Initial read failed');
+Count := RingBuf.Write(Data:= ADR(WrappedData), Length:= WrappedSize);
+Assert(bCondition:= Count = WrappedSize, sMessage:= 'Write across non-power-of-two end failed');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= ExpectedSize);
+Assert(bCondition:= Count = ExpectedSize, sMessage:= 'Unexpected queued data length');
+Assert(bCondition:= MEMCMP(ADR(FirstData[FirstReadSize]), ADR(ReadBuffer), FirstSize - FirstReadSize) = 0, sMessage:= 'Original tail changed');
+Assert(bCondition:= MEMCMP(ADR(WrappedData), ADR(ReadBuffer[FirstSize - FirstReadSize]), WrappedSize) = 0, sMessage:= 'Wrapped payload changed');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Buffer not empty after read');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

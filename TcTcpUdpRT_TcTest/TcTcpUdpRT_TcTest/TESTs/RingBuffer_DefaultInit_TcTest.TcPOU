@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_DefaultInit_TcTest" Id="{8ec5719c-ac16-4da9-986a-a4e72e86f39a}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Init with default size and repeat Init' }
+{ attribute 'Category':='RingBuffer/Allocation' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_DefaultInit_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	WriteBuffer: ARRAY[0..(DataBufferSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(DataBufferSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 0;
+	ExpectedBufferSize: UDINT := TcTcpUdpRT_Param.RingBufferSize;
+	SecondBufferSize: UDINT := 123;
+	DataBufferSize: UDINT := 10;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Assert(bCondition:= NOT RingBuf.IsAllocated, sMessage:= 'Init(0) needs a fresh PLC start; disable Fast Mode before re-running');
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init(0) failed');
+Assert(bCondition:= RingBuf.IsAllocated, sMessage:= 'Init(0) did not allocate');
+Assert(bCondition:= RingBuf.Size = ExpectedBufferSize, sMessage:= 'Init(0) did not use the default size');
+Assert(bCondition:= RingBuf.IsBufferEmpty AND NOT RingBuf.IsBufferFull, sMessage:= 'Unexpected state after Init(0)');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+
+MEMSET(ADR(WriteBuffer), 7, SIZEOF(WriteBuffer));
+Count := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= SIZEOF(WriteBuffer));
+Assert(bCondition:= Count = DataBufferSize, sMessage:= 'Write after Init(0) failed');
+Assert(bCondition:= RingBuf.Init(BufferSize:= SecondBufferSize), sMessage:= 'Second Init failed');
+Assert(bCondition:= RingBuf.Size = ExpectedBufferSize, sMessage:= 'Second Init changed the size');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= SIZEOF(ReadBuffer));
+Assert(bCondition:= Count = DataBufferSize, sMessage:= 'Second Init discarded unread data');
+Assert(bCondition:= MEMCMP(ADR(WriteBuffer), ADR(ReadBuffer), DataBufferSize) = 0, sMessage:= 'Payload changed after second Init');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_RepeatedWrap_TcTest" Id="{74229fe6-67c5-4ccf-be95-344e1f154321}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Preserve varying payloads over repeated wraparound cycles' }
+{ attribute 'Category':='RingBuffer/Wraparound' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_RepeatedWrap_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	Data: ARRAY[0..(MaxChunkSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(MaxChunkSize-1)] OF BYTE;
+	Count: UDINT;
+	Cycle: UDINT;
+	Index: UDINT;
+	ChunkSize: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 8;
+	MaxChunkSize: UDINT := 5;
+	CycleCount: UDINT := 20;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+FOR Cycle := 0 TO CycleCount - 1 DO
+	ChunkSize := (Cycle MOD MaxChunkSize) + 1;
+	FOR Index := 0 TO ChunkSize - 1 DO
+		Data[Index] := TO_BYTE((Cycle * 17 + Index + 1) MOD 255);
+	END_FOR
+
+	Count := RingBuf.Write(Data:= ADR(Data), Length:= ChunkSize);
+	Assert(bCondition:= Count = ChunkSize, sMessage:= 'Repeated-wrap write returned an unexpected count');
+	Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= ChunkSize);
+	Assert(bCondition:= Count = ChunkSize, sMessage:= 'Repeated-wrap read returned an unexpected count');
+	Assert(bCondition:= MEMCMP(ADR(Data), ADR(ReadBuffer), ChunkSize) = 0, sMessage:= 'Repeated-wrap payload changed');
+	Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Repeated-wrap cycle left queued data');
+END_FOR
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

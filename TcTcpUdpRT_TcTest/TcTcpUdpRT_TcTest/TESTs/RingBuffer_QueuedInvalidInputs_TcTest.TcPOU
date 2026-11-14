@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_QueuedInvalidInputs_TcTest" Id="{e838c4b9-76f0-4d15-a348-cdcd3e605321}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Reject invalid operations without losing queued data' }
+{ attribute 'Category':='RingBuffer/Errors' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_QueuedInvalidInputs_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	QueuedData: ARRAY[0..(DataSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(DataSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 16;
+	DataSize: UDINT := 5;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(QueuedData), 63, SIZEOF(QueuedData));
+Count := RingBuf.Write(Data:= ADR(QueuedData), Length:= DataSize);
+Assert(bCondition:= Count = DataSize, sMessage:= 'Could not queue initial payload');
+
+Count := RingBuf.Write(Data:= 0, Length:= 1);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Null write was not rejected while data was queued');
+RingBuf.ResetError();
+Count := RingBuf.Write(Data:= ADR(QueuedData), Length:= 0);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Zero-length write was not rejected while data was queued');
+RingBuf.ResetError();
+Count := RingBuf.Read(Data:= 0, Length:= DataSize);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Null read was not rejected while data was queued');
+RingBuf.ResetError();
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= 0);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Zero-length read was not rejected while data was queued');
+RingBuf.ResetError();
+
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'ResetError did not clear invalid-operation errors');
+Assert(bCondition:= NOT RingBuf.IsBufferEmpty, sMessage:= 'Invalid operations discarded queued data');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= SIZEOF(ReadBuffer));
+Assert(bCondition:= Count = DataSize, sMessage:= 'Could not recover and read queued data');
+Assert(bCondition:= MEMCMP(ADR(QueuedData), ADR(ReadBuffer), DataSize) = 0, sMessage:= 'Queued data changed after invalid operations');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Buffer not empty after recovery read');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

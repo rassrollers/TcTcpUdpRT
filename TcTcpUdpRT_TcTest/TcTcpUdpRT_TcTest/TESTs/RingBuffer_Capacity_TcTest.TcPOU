@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_Capacity_TcTest" Id="{a2f5ab63-34e5-43e1-879c-aa55072fc4b8}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Reject overflow and accept exactly the usable capacity' }
+{ attribute 'Category':='RingBuffer/Write' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_Capacity_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	Data: ARRAY[0..(WriteBufferSize-1)] OF BYTE;
+	Count: UDINT;
+	Capacity: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 32768;
+	WriteBufferSize: UDINT := 35000;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(Data), 24, SIZEOF(Data));
+Count := RingBuf.Write(Data:= ADR(Data), Length:= SIZEOF(Data));
+Assert(bCondition:= Count = 0, sMessage:= 'Oversized write was partially accepted');
+Assert(bCondition:= RingBuf.Error, sMessage:= 'Overflow did not set Error');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Overflow left data behind');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'ResetError did not clear overflow');
+
+Capacity := BufferSize - 1;
+Count := RingBuf.Write(Data:= ADR(Data), Length:= Capacity);
+AssertEqual(anyExpected:= Capacity, anyActual:= Count, sMessage:= 'Write did not accept the full usable capacity');
+Assert(bCondition:= RingBuf.IsBufferFull, sMessage:= 'Buffer not full at size - 1');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

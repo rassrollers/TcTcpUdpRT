@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_ConsumeRefill_TcTest" Id="{2350b916-f2f4-4b05-a510-827752dafa95}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Consume and refill while preserving FIFO and flags' }
+{ attribute 'Category':='RingBuffer/Capacity' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_ConsumeRefill_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	FirstData: ARRAY[0..(FirstSize-1)] OF BYTE;
+	RefillData: ARRAY[0..(RefillSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(Capacity-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 8;
+	Capacity: UDINT := BufferSize - 1;
+	FirstSize: UDINT := 6;
+	FirstReadSize: UDINT := 4;
+	RefillSize: UDINT := 5;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(FirstData), 11, SIZEOF(FirstData));
+MEMSET(ADR(RefillData), 22, SIZEOF(RefillData));
+Count := RingBuf.Write(Data:= ADR(FirstData), Length:= FirstSize);
+Assert(bCondition:= Count = FirstSize, sMessage:= 'Initial write failed');
+Assert(bCondition:= NOT RingBuf.IsBufferEmpty AND NOT RingBuf.IsBufferFull, sMessage:= 'Flags incorrect after partial write');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= FirstReadSize);
+Assert(bCondition:= Count = FirstReadSize, sMessage:= 'Initial partial read failed');
+Assert(bCondition:= NOT RingBuf.IsBufferEmpty AND NOT RingBuf.IsBufferFull, sMessage:= 'Flags incorrect after partial read');
+Count := RingBuf.Write(Data:= ADR(RefillData), Length:= RefillSize);
+Assert(bCondition:= Count = RefillSize, sMessage:= 'Refill did not use all available capacity');
+Assert(bCondition:= RingBuf.IsBufferFull AND NOT RingBuf.IsBufferEmpty, sMessage:= 'Flags incorrect at full capacity');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= Capacity);
+Assert(bCondition:= Count = Capacity, sMessage:= 'Could not read all queued data');
+Assert(bCondition:= MEMCMP(ADR(FirstData[FirstReadSize]), ADR(ReadBuffer), FirstSize - FirstReadSize) = 0, sMessage:= 'Original tail changed');
+Assert(bCondition:= MEMCMP(ADR(RefillData), ADR(ReadBuffer[FirstSize - FirstReadSize]), RefillSize) = 0, sMessage:= 'Refill data changed');
+Assert(bCondition:= RingBuf.IsBufferEmpty AND NOT RingBuf.IsBufferFull, sMessage:= 'Flags incorrect after draining buffer');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

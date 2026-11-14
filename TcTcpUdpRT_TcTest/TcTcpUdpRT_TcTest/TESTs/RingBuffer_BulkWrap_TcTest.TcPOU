@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_BulkWrap_TcTest" Id="{1b98382a-3969-431a-a91e-74bb727d104e}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Preserve FIFO order across a bulk wraparound' }
+{ attribute 'Category':='RingBuffer/Wraparound' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_BulkWrap_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	First: ARRAY[0..(FirstBufferSize-1)] OF BYTE;
+	Second: ARRAY[0..(SecondBufferSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(ReadBufferSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 32768;
+	FirstBufferSize: UDINT := 25000;
+	SecondBufferSize: UDINT := 8000;
+	ReadBufferSize: UDINT := 24000;
+	FinalReadSize: UDINT := 10000;
+	RemainingSize: UDINT := FirstBufferSize - ReadBufferSize;
+	ExpectedSize: UDINT := RemainingSize + SecondBufferSize;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Pin the geometry: the second write and the final read must straddle the physical end.
+RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(First), 8, SIZEOF(First));
+MEMSET(ADR(Second), 16, SIZEOF(Second));
+Count := RingBuf.Write(Data:= ADR(First), Length:= FirstBufferSize);
+Assert(bCondition:= Count = FirstBufferSize, sMessage:= 'Expected to write 25000 bytes');
+Assert(bCondition:= NOT RingBuf.IsBufferFull, sMessage:= 'Buffer already full after writing 25k');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= ReadBufferSize);
+Assert(bCondition:= Count = ReadBufferSize, sMessage:= 'Expected to read 24000 bytes');
+Assert(bCondition:= MEMCMP(ADR(First), ADR(ReadBuffer), ReadBufferSize) = 0, sMessage:= '24k payload changed');
+
+Count := RingBuf.Write(Data:= ADR(Second), Length:= SecondBufferSize);
+Assert(bCondition:= Count = SecondBufferSize, sMessage:= 'Expected to write 8000 bytes across the end');
+MEMSET(ADR(ReadBuffer), 0, SIZEOF(ReadBuffer));
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= FinalReadSize);
+Assert(bCondition:= Count = ExpectedSize, sMessage:= 'Expected only 9000 bytes to be available');
+Assert(bCondition:= MEMCMP(ADR(First[ReadBufferSize]), ADR(ReadBuffer), RemainingSize) = 0, sMessage:= 'Missing tail of the first write');
+Assert(bCondition:= MEMCMP(ADR(Second), ADR(ReadBuffer[RemainingSize]), SecondBufferSize) = 0, sMessage:= 'Wrapped payload changed');
+Assert(bCondition:= (ReadBuffer[ExpectedSize] = 0) AND (ReadBuffer[FinalReadSize] = 0), sMessage:= 'Wrapped read touched bytes beyond the payload');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Wrapped read did not drain the buffer');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

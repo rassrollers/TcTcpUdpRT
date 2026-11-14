@@ -16,6 +16,7 @@ Build in TwinCAT 4026.20 and tested with a C6015 with TC/BSD 14.2.3.5.
   - [Limitations](#limitations)
 - [Faults](#faults)
 - [Testing](#testing)
+  - [Ring buffer tests with TF1140](#ring-buffer-tests-with-tf1140)
   - [Prerequisites on the PC](#prerequisites-on-the-pc)
   - [Running the tests](#running-the-tests)
 
@@ -120,6 +121,27 @@ The instance of the TcTcpServer, TcTcpClient and TcUdpSendReceive needs to be as
 The `TcTcpUdpRT_Test` project contains TcUnit test suites driven by the Python tests in `tests/`. The PLC runs the
 suites with `RUN_IN_SEQUENCE`: ring buffer, TCP client, TCP server, UDP and ARP/ping. The ring buffer and ARP/ping
 suites run on their own; the ping test must target your PCs IP address, which must answer ICMP echo requests.
+
+## Ring buffer tests with TF1140
+
+The separate `TcTcpUdpRT_TcTest` project runs the ring buffer checks without pytest or a network peer.
+It exposes 15 test cases in the `RingBuffer` category and its subcategories: emptying, partial reads,
+bulk and single-byte wraparound, capacity/overflow, queued-data preservation, consume/refill flags,
+exact-boundary operations, tiny and non-power-of-two capacities, invalid inputs with and without queued data,
+clearing and reusing a wrapped buffer, repeated varying-size wraparound, unallocated operations, and
+default/repeated initialization. Each case sets up its own buffer and can be queued independently.
+
+1. With TF1140 and the `TcTcpUdpRT` library available in TwinCAT XAE, build `TcTcpUdpRT_TcTest`.
+2. Enable **Autostart Boot Project** and activate the project on a dedicated test target.
+3. In **TcTestClient**, select the target, connect, and choose **Queue All** or queue an individual case.
+
+Use normal restart mode (**Fast Mode** off) for memory checks and when repeating the default-initialization test.
+The test buffers are `VAR` members, with buffer sizes declared as `VAR CONSTANT` in each test FB. Their
+allocations live until the PLC is unloaded, when `RingBuffer.FB_Exit` releases them. The normal read/write
+cases clear their buffers before each run; the default-initialization case deliberately requires a fresh instance.
+
+Use `Assert(bCondition:= Count = Capacity, ...)` to compare a result with a constant. `AssertEqual` takes
+`ANY` operands: pass typed `VAR` variables for both values, not constants, literals, or expressions.
 
 ## Prerequisites on the PC
 

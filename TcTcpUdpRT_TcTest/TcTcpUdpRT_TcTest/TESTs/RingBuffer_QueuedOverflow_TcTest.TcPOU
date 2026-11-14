@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_QueuedOverflow_TcTest" Id="{d5d70a14-1c26-40db-bcc6-2291c3c16175}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Reject overflow without changing queued data' }
+{ attribute 'Category':='RingBuffer/Write' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_QueuedOverflow_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	QueuedData: ARRAY[0..(QueuedSize-1)] OF BYTE;
+	OverflowData: ARRAY[0..(OverflowSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(QueuedSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 16;
+	QueuedSize: UDINT := 10;
+	OverflowSize: UDINT := 6;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(QueuedData), 21, SIZEOF(QueuedData));
+MEMSET(ADR(OverflowData), 42, SIZEOF(OverflowData));
+Count := RingBuf.Write(Data:= ADR(QueuedData), Length:= QueuedSize);
+Assert(bCondition:= Count = QueuedSize, sMessage:= 'Could not queue the initial payload');
+Count := RingBuf.Write(Data:= ADR(OverflowData), Length:= OverflowSize);
+Assert(bCondition:= Count = 0, sMessage:= 'Overflow write was partially or fully accepted');
+Assert(bCondition:= RingBuf.Error, sMessage:= 'Overflow did not set Error');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'ResetError did not clear overflow');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= SIZEOF(ReadBuffer));
+Assert(bCondition:= Count = QueuedSize, sMessage:= 'Queued data length changed after overflow');
+Assert(bCondition:= MEMCMP(ADR(QueuedData), ADR(ReadBuffer), QueuedSize) = 0, sMessage:= 'Overflow changed the queued data');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Buffer not empty after reading the original data');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

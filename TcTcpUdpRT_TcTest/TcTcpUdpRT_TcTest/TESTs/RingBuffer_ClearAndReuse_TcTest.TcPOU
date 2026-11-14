@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_ClearAndReuse_TcTest" Id="{02f18ec2-fd37-4f4d-9f68-faa1dc89dd55}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Clear a wrapped buffer and reuse its full capacity' }
+{ attribute 'Category':='RingBuffer/Clear' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_ClearAndReuse_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	FirstData: ARRAY[0..(FirstSize-1)] OF BYTE;
+	WrappedData: ARRAY[0..(WrappedSize-1)] OF BYTE;
+	FullData: ARRAY[0..(Capacity-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(Capacity-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 8;
+	Capacity: UDINT := BufferSize - 1;
+	FirstSize: UDINT := 6;
+	FirstReadSize: UDINT := 4;
+	WrappedSize: UDINT := 4;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(FirstData), 37, SIZEOF(FirstData));
+MEMSET(ADR(WrappedData), 74, SIZEOF(WrappedData));
+MEMSET(ADR(FullData), 111, SIZEOF(FullData));
+Count := RingBuf.Write(Data:= ADR(FirstData), Length:= FirstSize);
+Assert(bCondition:= Count = FirstSize, sMessage:= 'Initial write failed');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= FirstReadSize);
+Assert(bCondition:= Count = FirstReadSize, sMessage:= 'Could not advance read pointer');
+Count := RingBuf.Write(Data:= ADR(WrappedData), Length:= WrappedSize);
+Assert(bCondition:= Count = WrappedSize, sMessage:= 'Could not create wrapped queued data');
+Assert(bCondition:= NOT RingBuf.IsBufferEmpty, sMessage:= 'Wrapped buffer unexpectedly empty');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Could not clear wrapped buffer');
+Assert(bCondition:= RingBuf.IsBufferEmpty AND NOT RingBuf.IsBufferFull, sMessage:= 'Flags incorrect after clearing');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= Capacity);
+Assert(bCondition:= Count = 0, sMessage:= 'Cleared buffer returned stale data');
+Count := RingBuf.Write(Data:= ADR(FullData), Length:= Capacity);
+Assert(bCondition:= Count = Capacity, sMessage:= 'Could not reuse full usable capacity after clear');
+Assert(bCondition:= RingBuf.IsBufferFull, sMessage:= 'Reused buffer not full at usable capacity');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= Capacity);
+Assert(bCondition:= Count = Capacity, sMessage:= 'Could not read reused full capacity');
+Assert(bCondition:= MEMCMP(ADR(FullData), ADR(ReadBuffer), Capacity) = 0, sMessage:= 'Reused buffer payload changed');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Buffer not empty after reading reused capacity');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

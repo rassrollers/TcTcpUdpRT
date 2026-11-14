@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_OneByteWrap_TcTest" Id="{8718a8a3-dd14-427c-97df-c386920c8047}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Write and read one byte past the physical end' }
+{ attribute 'Category':='RingBuffer/Wraparound' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_OneByteWrap_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	Data: ARRAY[0..(BufferSize-1)] OF BYTE;
+	Expected: ARRAY[0..(WriteBufferSize-1)] OF BYTE := [1,2,3,4,5,6,7,8,9,10,11];
+	Count: UDINT;
+	Offset: UDINT := BufferSize - (WriteBufferSize - 1);
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := TcTcpUdpRT_Param.RingBufferSize;
+	WriteBufferSize: UDINT := 11;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Offset := BufferSize - (WriteBufferSize - 1);
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(Data), 55, Offset);
+Count := RingBuf.Write(Data:= ADR(Data), Length:= Offset);
+AssertEqual(anyExpected:= Offset, anyActual:= Count, sMessage:= 'Could not position writer ten bytes before end');
+Count := RingBuf.Read(Data:= ADR(Data), Length:= Offset);
+AssertEqual(anyExpected:= Offset, anyActual:= Count, sMessage:= 'Could not position reader ten bytes before end');
+
+Count := RingBuf.Write(Data:= ADR(Expected), Length:= WriteBufferSize);
+Assert(bCondition:= Count = WriteBufferSize, sMessage:= 'One-byte wrap write count was not 11');
+MEMSET(ADR(Data), 0, WriteBufferSize + 1);
+Count := RingBuf.Read(Data:= ADR(Data), Length:= WriteBufferSize);
+Assert(bCondition:= Count = WriteBufferSize, sMessage:= 'One-byte wrap read count was not 11');
+Assert(bCondition:= MEMCMP(ADR(Expected), ADR(Data), WriteBufferSize) = 0, sMessage:= 'Payload changed across the wrap boundary');
+Assert(bCondition:= Data[WriteBufferSize] = 0, sMessage:= 'Read wrote past the eleventh byte');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_ExactBoundary_TcTest" Id="{c3fee93a-fdb4-40ca-9d9f-6964e306e055}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Write and read ending exactly at the physical boundary' }
+{ attribute 'Category':='RingBuffer/Wraparound' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_ExactBoundary_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	PositionData: ARRAY[0..(PositionSize-1)] OF BYTE;
+	Payload: ARRAY[0..(BoundarySize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(BoundarySize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 8;
+	PositionSize: UDINT := 5;
+	BoundarySize: UDINT := 3;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(PositionData), 33, SIZEOF(PositionData));
+MEMSET(ADR(Payload), 77, SIZEOF(Payload));
+Count := RingBuf.Write(Data:= ADR(PositionData), Length:= PositionSize);
+Assert(bCondition:= Count = PositionSize, sMessage:= 'Could not position pointers at the boundary offset');
+Count := RingBuf.Read(Data:= ADR(PositionData), Length:= PositionSize);
+Assert(bCondition:= Count = PositionSize, sMessage:= 'Could not advance reader to the boundary offset');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Buffer not empty before boundary write');
+Count := RingBuf.Write(Data:= ADR(Payload), Length:= BoundarySize);
+Assert(bCondition:= Count = BoundarySize, sMessage:= 'Write ending exactly at buffer size failed');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= BoundarySize);
+Assert(bCondition:= Count = BoundarySize, sMessage:= 'Read ending exactly at buffer size failed');
+Assert(bCondition:= MEMCMP(ADR(Payload), ADR(ReadBuffer), BoundarySize) = 0, sMessage:= 'Boundary payload changed');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Buffer not empty after boundary read');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

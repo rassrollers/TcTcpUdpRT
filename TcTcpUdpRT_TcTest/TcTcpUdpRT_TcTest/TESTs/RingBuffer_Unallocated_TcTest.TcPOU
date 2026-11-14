@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_Unallocated_TcTest" Id="{0e4bac36-d545-494f-894e-c95916aa411d}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='State and rejected operations before Init' }
+{ attribute 'Category':='RingBuffer/Allocation' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_Unallocated_TcTest EXTENDS FB_TestCaseBase
+VAR CONSTANT
+	DataBufferSize: UDINT := 10;
+	NotAllocated: STRING := 'Ring buffer is not allocated, call Init() first';
+END_VAR
+VAR
+	RingBuf: RingBuffer;
+	Data: ARRAY[0..(DataBufferSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Assert(bCondition:= NOT RingBuf.IsAllocated, sMessage:= 'Already allocated before Init');
+Assert(bCondition:= RingBuf.Size = 0, sMessage:= 'Nonzero size before Init');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Not empty before Init');
+Assert(bCondition:= NOT RingBuf.IsBufferFull, sMessage:= 'Full before Init');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Error before first use');
+
+MEMSET(ADR(Data), 42, SIZEOF(Data));
+Count := RingBuf.Read(Data:= ADR(Data), Length:= SIZEOF(Data));
+Assert(bCondition:= Count = 0, sMessage:= 'Unallocated read returned data');
+Assert(bCondition:= Data[0] = 42, sMessage:= 'Unallocated read modified its destination');
+Assert(bCondition:= RingBuf.Error AND (RingBuf.GetError = NotAllocated), sMessage:= 'Wrong error for unallocated read');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset unallocated read error');
+
+Count := RingBuf.Write(Data:= ADR(Data), Length:= SIZEOF(Data));
+Assert(bCondition:= Count = 0, sMessage:= 'Unallocated write accepted data');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Unallocated write left data behind');
+Assert(bCondition:= RingBuf.Error AND (RingBuf.GetError = NotAllocated), sMessage:= 'Wrong error for unallocated write');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset unallocated write error');
+
+Assert(bCondition:= NOT RingBuf.EmptyBuffer(), sMessage:= 'EmptyBuffer succeeded before Init');
+Assert(bCondition:= RingBuf.Error AND (RingBuf.GetError = NotAllocated), sMessage:= 'Wrong error for unallocated EmptyBuffer');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset unallocated EmptyBuffer error');
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

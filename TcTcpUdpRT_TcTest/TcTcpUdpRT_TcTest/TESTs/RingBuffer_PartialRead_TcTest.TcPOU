@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_PartialRead_TcTest" Id="{bfe85990-0740-42df-bcc4-2fa76b8c7581}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Read available data and empty the buffer' }
+{ attribute 'Category':='RingBuffer/Read' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_PartialRead_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	WriteBuffer: ARRAY[0..(WriteBufferSize-1)] OF BYTE;
+	ReadBuffer: ARRAY[0..(ReadBufferSize-1)] OF BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := TcTcpUdpRT_Param.RingBufferSize;
+	WriteBufferSize: UDINT := 1000;
+	ReadBufferSize: UDINT := 2000;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+MEMSET(ADR(WriteBuffer), 3, SIZEOF(WriteBuffer));
+MEMSET(ADR(ReadBuffer), 0, SIZEOF(ReadBuffer));
+Count := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= SIZEOF(WriteBuffer));
+Assert(bCondition:= Count = WriteBufferSize, sMessage:= 'Expected to write 1000 bytes');
+Assert(bCondition:= NOT RingBuf.IsBufferEmpty, sMessage:= 'Buffer still empty after writing 1k');
+
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= SIZEOF(ReadBuffer));
+Assert(bCondition:= Count = WriteBufferSize, sMessage:= 'Read did not stop at 1000 bytes');
+Assert(bCondition:= MEMCMP(ADR(WriteBuffer), ADR(ReadBuffer), WriteBufferSize) = 0, sMessage:= 'The 1k payload changed');
+Assert(bCondition:= (ReadBuffer[WriteBufferSize] = 0) AND (ReadBuffer[ReadBufferSize-1] = 0), sMessage:= 'Read touched bytes beyond the payload');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'Read did not drain the buffer');
+
+Count := RingBuf.Write(Data:= ADR(WriteBuffer), Length:= SIZEOF(WriteBuffer));
+Assert(bCondition:= Count = WriteBufferSize, sMessage:= 'Could not refill the buffer before testing EmptyBuffer');
+Assert(bCondition:= NOT RingBuf.IsBufferEmpty, sMessage:= 'Buffer empty before testing EmptyBuffer');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'EmptyBuffer failed');
+Assert(bCondition:= RingBuf.IsBufferEmpty, sMessage:= 'EmptyBuffer left data behind');
+Count := RingBuf.Read(Data:= ADR(ReadBuffer), Length:= SIZEOF(ReadBuffer));
+Assert(bCondition:= Count = 0, sMessage:= 'Read returned data after EmptyBuffer');
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= RingBuf.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

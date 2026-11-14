@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="PRG_TEST" Id="{b6c24b50-d614-4dfe-88be-8b7174e19e4a}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_TEST
+VAR
+	PartialRead		: RingBuffer_PartialRead_TcTest;
+	BulkWrap		: RingBuffer_BulkWrap_TcTest;
+	OneByteWrap		: RingBuffer_OneByteWrap_TcTest;
+	Capacity		: RingBuffer_Capacity_TcTest;
+	InvalidInputs	: RingBuffer_InvalidInputs_TcTest;
+	Unallocated		: RingBuffer_Unallocated_TcTest;
+	DefaultInit		: RingBuffer_DefaultInit_TcTest;
+	QueuedOverflow	: RingBuffer_QueuedOverflow_TcTest;
+	ConsumeRefill	: RingBuffer_ConsumeRefill_TcTest;
+	ExactBoundary	: RingBuffer_ExactBoundary_TcTest;
+	SmallCapacity	: RingBuffer_SmallCapacity_TcTest;
+	NonPowerOfTwo	: RingBuffer_NonPowerOfTwo_TcTest;
+	QueuedInvalidInputs	: RingBuffer_QueuedInvalidInputs_TcTest;
+	ClearAndReuse	: RingBuffer_ClearAndReuse_TcTest;
+	RepeatedWrap	: RingBuffer_RepeatedWrap_TcTest;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Tc3_PlcTestFramework.F_CallTestController();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_SmallCapacity_TcTest" Id="{80c92035-6c29-4d31-ab55-89dc506c0cf5}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Handle one-byte storage and one-byte usable capacity' }
+{ attribute 'Category':='RingBuffer/Capacity' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_SmallCapacity_TcTest EXTENDS FB_TestCaseBase
+VAR
+	ZeroCapacityBuffer: RingBuffer;
+	OneCapacityBuffer: RingBuffer;
+	Data: BYTE;
+	ReadData: BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	ZeroCapacitySize: UDINT := 1;
+	OneCapacitySize: UDINT := 2;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[ZeroCapacityBuffer.ResetError();
+Assert(bCondition:= ZeroCapacityBuffer.Init(BufferSize:= ZeroCapacitySize), sMessage:= 'Could not initialize one-byte storage');
+Assert(bCondition:= ZeroCapacityBuffer.Size = ZeroCapacitySize, sMessage:= 'Unexpected one-byte storage size');
+Assert(bCondition:= ZeroCapacityBuffer.IsBufferEmpty, sMessage:= 'One-byte storage should start empty');
+Data := 16#5A;
+Count := ZeroCapacityBuffer.Write(Data:= ADR(Data), Length:= 1);
+Assert(bCondition:= Count = 0, sMessage:= 'Zero-capacity ring accepted data');
+Assert(bCondition:= ZeroCapacityBuffer.Error, sMessage:= 'Zero-capacity write did not set Error');
+Assert(bCondition:= ZeroCapacityBuffer.IsBufferEmpty, sMessage:= 'Rejected write changed zero-capacity ring');
+ZeroCapacityBuffer.ResetError();
+Assert(bCondition:= NOT ZeroCapacityBuffer.Error, sMessage:= 'Could not reset zero-capacity write error');
+
+OneCapacityBuffer.ResetError();
+Assert(bCondition:= OneCapacityBuffer.Init(BufferSize:= OneCapacitySize), sMessage:= 'Could not initialize two-byte storage');
+Assert(bCondition:= OneCapacityBuffer.Size = OneCapacitySize, sMessage:= 'Unexpected two-byte storage size');
+Count := OneCapacityBuffer.Write(Data:= ADR(Data), Length:= 1);
+Assert(bCondition:= Count = 1, sMessage:= 'One-byte usable capacity rejected data');
+Assert(bCondition:= OneCapacityBuffer.IsBufferFull, sMessage:= 'One-byte usable capacity not full');
+Count := OneCapacityBuffer.Read(Data:= ADR(ReadData), Length:= 1);
+Assert(bCondition:= (Count = 1) AND (ReadData = Data), sMessage:= 'One-byte payload did not round-trip');
+Assert(bCondition:= OneCapacityBuffer.IsBufferEmpty, sMessage:= 'One-byte usable capacity not empty after read');
+Data := 16#A5;
+Count := OneCapacityBuffer.Write(Data:= ADR(Data), Length:= 1);
+Assert(bCondition:= Count = 1, sMessage:= 'Could not reuse one-byte usable capacity');
+Count := OneCapacityBuffer.Read(Data:= ADR(ReadData), Length:= 1);
+Assert(bCondition:= (Count = 1) AND (ReadData = Data), sMessage:= 'Wrapped one-byte payload did not round-trip');
+Assert(bCondition:= NOT OneCapacityBuffer.Error, sMessage:= OneCapacityBuffer.GetError);
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

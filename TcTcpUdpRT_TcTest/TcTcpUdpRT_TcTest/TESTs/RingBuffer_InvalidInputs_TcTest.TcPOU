@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="RingBuffer_InvalidInputs_TcTest" Id="{c13e07a7-7278-488a-a79e-35cf555ba6ff}" SpecialFunc="None">
+    <Declaration><![CDATA[{ attribute 'Name':='Reject null pointers and zero lengths' }
+{ attribute 'Category':='RingBuffer/Errors' }
+{ attribute 'Owner':='Rasmus' }
+{ attribute 'Timeout':='t#20s' }
+FUNCTION_BLOCK RingBuffer_InvalidInputs_TcTest EXTENDS FB_TestCaseBase
+VAR
+	RingBuf: RingBuffer;
+	Data: BYTE;
+	Count: UDINT;
+END_VAR
+VAR CONSTANT
+	BufferSize: UDINT := 16;
+	DataSize: UDINT := 10;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RingBuf.ResetError();
+Assert(bCondition:= RingBuf.Init(BufferSize:= BufferSize), sMessage:= 'Init failed');
+Assert(bCondition:= RingBuf.EmptyBuffer(), sMessage:= 'Failed to prepare an empty buffer');
+Count := RingBuf.Write(Data:= 0, Length:= DataSize);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Write accepted a null pointer');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset null write error');
+
+Count := RingBuf.Write(Data:= ADR(Data), Length:= 0);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Write accepted a zero length');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset zero-length write error');
+
+Count := RingBuf.Read(Data:= 0, Length:= DataSize);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Read accepted a null pointer');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset null read error');
+
+Count := RingBuf.Read(Data:= ADR(Data), Length:= 0);
+Assert(bCondition:= (Count = 0) AND RingBuf.Error, sMessage:= 'Read accepted a zero length');
+RingBuf.ResetError();
+Assert(bCondition:= NOT RingBuf.Error, sMessage:= 'Could not reset zero-length read error');
+Succeed();
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

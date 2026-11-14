@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<TcSmItem xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.20" ClassName="CNestedPlcProjDef">
+	<Project GUID="{ECC2233E-A8E8-4186-826F-0A51E219BAB2}" Name="TcTcpUdpRT_TcTest" PrjFilePath="..\..\TcTcpUdpRT_TcTest\TcTcpUdpRT_TcTest.plcproj" TmcFilePath="..\..\TcTcpUdpRT_TcTest\TcTcpUdpRT_TcTest.tmc" ReloadTmc="true" AmsPort="851" TargetArchiveSettings="#x0001" FileArchiveSettings="#x0000" CopyTmcToTarget="true" CopyTpyToTarget="false" SymbolicMapping="true">
+		<Instance File="TcTcpUdpRT_TcTest Instance.xti"/>
+	</Project>
+</TcSmItem>
